@@ -1,0 +1,139 @@
+{% extends "layouts/base.html" %} {% block title %} SMU - Test {% endblock title
+%}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}{% endblock stylesheets %} {% block content %}
+<script>
+  document.addEventListener("DOMContentLoaded", init);
+  function init() {
+    var evaluatorName = "Miranda Bailey";
+
+    var buttons = document.getElementsByTagName("button");
+    populateEvaluationsTable(evaluatorName);
+    /*
+    for (let button of buttons) {
+      button.addEventListener("click", completeEvaluation);
+    }
+      */  
+    const tableBody = document.querySelector("#evaluationsTable tbody");
+    tableBody.addEventListener("click", function (event) {
+      if (event.target.tagName === "BUTTON") {
+        completeEvaluation(event, evaluatorName);
+      }
+    });
+
+  }
+
+  function populateEvaluationsTable(evaluatorName) {
+    // create the table header here, columns: First Name, Last Name, Evaluation
+    // get all the evaluations that apply to a certain evaluator
+    fetch("/get_evaluations?evaluatorName=" + evaluatorName, {
+      method: "GET",
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("reached here");
+        console.log(data);
+        // Check if data is not empty
+        if (data.length > 0) {
+          const tableBody = document.querySelector("#evaluationsTable tbody");
+          tableBody.innerHTML = "";
+          // iterate through each person to be evaluated and create row
+          data.forEach((person) => {
+            var personName = person.Student_Being_Evaluated_Name;
+            var evaluationStatus = person.Status;
+            var evaluationDueDate = person.Due_Date;
+
+            createRow(personName, evaluationStatus, evaluationDueDate);
+          });
+        } else {
+          console.log("No evaluations found for this evaluator.");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
+  function createRow(personName, evaluationStatus, evaluationDueDate) {
+    // create a new row dynamically with flask syntax that has the corresponding parameter in the corresponding rows
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    nameCell.innerHTML = personName;
+    row.appendChild(nameCell);
+
+    const evaluationDueDateCell = document.createElement("td");
+    evaluationDueDateCell.innerHTML = evaluationDueDate;
+    row.appendChild(evaluationDueDateCell);
+
+    const evaluationCell = document.createElement("td");
+    const currentDate = new Date();
+    const dueDate = new Date(evaluationDueDate);
+    if ((currentDate <= dueDate) && evaluationStatus == "Incomplete") {
+      evaluationCell.innerHTML =
+        "<button type='button' class='btn btn-primary btn-sm' style='background-color: #141b4d; color: white'>Start Evaluation</button>";
+    } else if(evaluationStatus == "Complete") {
+      evaluationCell.innerHTML =
+        "<button type='button' class='btn btn-primary btn-sm' style='background-color: #141b4d; color: white' disabled>Completed</button>";
+    } else if (currentDate > dueDate){
+      evaluationCell.innerHTML =
+        "<button type='button' class='btn btn-primary btn-sm' style='background-color: #141b4d; color: white' disabled>Overdue</button>";
+    }
+    row.appendChild(evaluationCell);
+
+    document.querySelector("#evaluationsTable tbody").appendChild(row);
+  }
+
+  function completeEvaluation(event, evaluatorName) {
+    var clickedElement = event.target;
+    var beingEval =
+      clickedElement.parentElement.previousElementSibling.previousElementSibling
+        .innerHTML;
+
+    window.location.href = "/form/" + beingEval + "/" + evaluatorName;
+  }
+</script>
+
+<div style="align-items: flex-start; margin-top: 30px">
+  <!-- <div class="row mb-5" style="margin-left: 130px">
+    <div class="col">
+      <h2 class="text-black" id="my_product_header">Group #</h2>
+    </div>
+  </div> -->
+  <div style="display: flex; align-items: flex-start; margin-left: 130px">
+    <div
+      class="table-responsive"
+      style="height: 400px; display: flex; width: 1250px; overflow-y: auto"
+    >
+      <table id="evaluationsTable" class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Due Date</th>
+            <th scope="col">Evaluation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- rows to be added here dynamically -->
+          <tr>
+            <th scope="row">1</th>
+            <td>Mark</td>
+            <td>Otto</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                style="background-color: #141b4d; color: white"
+              >
+                Complete Evaluation
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock content %}

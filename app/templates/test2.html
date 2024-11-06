@@ -1,0 +1,41 @@
+{% extends "layouts/base.html" %} {% block title %} SMU - Test {% endblock title
+%}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}{% endblock stylesheets %} {% block content %}
+<form method="POST" action="/test_input_content">
+    <label>First Name:</label><br />
+    <input type="text" id="sampleInput" name="sampleInput" value="{{ firstName }}" /><br />
+    <label>Last Name:</label><br />
+    <input type="text" id="sampleInputTwo" name="sampleInputTwo"/><br />
+    <button id="submitButton" type="submit">Submit</button>
+</form>
+<!-- <script>
+  document.addEventListener("DOMContentLoaded", init);
+  function init() {
+    document
+      .getElementById("submitButton")
+      .addEventListener("click", submitClick);
+  }
+
+  function submitClick() {
+    alert("IN HERE");
+    
+    fetch(
+      "/test_input_content&",
+      {
+        method: "GET",
+      }
+    )
+      .then((response) => response.text())
+      .then((data) => {
+        console.log("hi diya");
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+</script> -->
+
+
+{% endblock content %}

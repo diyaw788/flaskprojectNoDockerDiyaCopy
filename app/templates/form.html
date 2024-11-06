@@ -1,0 +1,205 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+
+ 
+<div style="padding-left: 100px; padding-right: 100px">
+    <div class="container mt-4"></div>
+
+    <h2 class="text-left" style="color: black;">{{ student_name }}</h2>
+
+    <p class="text-left" style="color: black;">Teamwork is behaviors under control of the individual team members. In your experience, how often does your peer demonstrate the following? Rate the frequency of the teamwork behavior for each of your group members by writing the corresponding number (see key) in the boxes:</p>
+
+    <p class="text-left" style="color: black;">Key: <br>0 = Never / Unacceptable <br>1 = Sometimes / Poor <br>2 = Usually / Acceptable <br>3 = Regularly / Good <br>4 = Always / Excellent</p>
+
+    <form method="POST" action="{{ url_for('submit_evaluation', evaluator_name=evaluator_name) }}">
+
+        <input type="hidden" name="Team_Member_Name" value="{{ student_name }}">
+
+        <table class="table table-bordered">
+
+            <thead>
+
+                <tr>
+
+                    <th scope="col" style="width: 75%;">Evaluation Topic</th>
+
+                    <th scope="col" style="width: 25%;">Rating (0-4)</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                <tr>
+
+                    <th colspan="2" class="text-center" style="background-color: #f8f9fa;">Contributes to Team Project</th>
+
+                </tr>
+
+                <tr>
+
+                    <td>Participates actively and accepts a fair share of the group work</td>
+
+                    <td><input type="number" id="topic1" name="topic1" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Works skillfully on assigned tasks and completes them on time</td>
+
+                    <td><input type="number" id="topic2" name="topic2" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Gives timely constructive feedback to team members in the appropriate format</td>
+
+                    <td><input type="number" id="topic3" name="topic3" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <th colspan="2" class="text-center" style="background-color: #f8f9fa;">Facilitates Contributions of Others</th>
+
+                </tr>
+
+                <tr>
+
+                    <td>Communicates actively and constructively</td>
+
+                    <td><input type="number" id="topic4" name="topic4" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Encourages all perspectives be considered and acknowledges contribution of others</td>
+
+                    <td><input type="number" id="topic5" name="topic5" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Constructively builds on contributions of others and integrates own work with work of others</td>
+
+                    <td><input type="number" id="topic6" name="topic6" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <th colspan="2" class="text-center" style="background-color: #f8f9fa;">Planning and Management</th>
+
+                </tr>
+
+                <tr>
+
+                    <td>Takes on an appropriate role in group (e.g., note taker)</td>
+
+                    <td><input type="number" id="topic7" name="topic7" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Clarifies goals and plans the project</td>
+
+                    <td><input type="number" id="topic8" name="topic8" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Reports to learn on progress</td>
+
+                    <td><input type="number" id="topic9" name="topic9" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <th colspan="2" class="text-center" style="background-color: #f8f9fa;">Fosters a Team Climate</th>
+
+                </tr>
+
+                <tr>
+
+                    <td>Ensures consistency between words, tone, facial expression, and body language</td>
+
+                    <td><input type="number" id="topic10" name="topic10" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Expresses positivity and optimism about team members and project</td>
+
+                    <td><input type="number" id="topic11" name="topic11" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <th colspan="2" class="text-center" style="background-color: #f8f9fa;">Manages Potential Conflict</th>
+
+                </tr>
+
+                <tr>
+
+                    <td>Displays appropriate assertiveness: neither dominating, submissive, nor passive aggressive</td>
+
+                    <td><input type="number" id="topic12" name="topic12" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Contributes appropriately to healthy debate</td>
+
+                    <td><input type="number" id="topic13" name="topic13" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <td>Responds to and manages direct/indirect conflict constructively and effectively</td>
+
+                    <td><input type="number" id="topic14" name="topic14" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+                <tr>
+
+                    <th colspan="2" class="text-center" style="background-color: #f8f9fa;">Overall</th>
+
+                </tr>
+
+                <tr>
+
+                    <td>Generally how would you rate your peer on effort they put into team tasks, their manner of interacting with others, and the quantity and quality of contributions they make to team discussions</td>
+
+                    <td><input type="number" id="topic15" name="topic15" min="0" max="4" class="form-control" required></td>
+
+                </tr>
+
+            </tbody>
+
+        </table>
+
+        <button type="submit" class="btn btn-primary mt-3">Submit Evaluation</button>
+
+    </form>
+
+</div>
+</div>
+
+
+ 
+
+{% endblock content %}
