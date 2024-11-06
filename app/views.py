@@ -108,6 +108,7 @@ def index():
 # def test2(beingEval, evaluatorName):
 #     return render_template('test2.html', beingEval=beingEval, evaluatorName=evaluatorName)
  
+ 
 @app.route('/get_evaluations', methods = ['GET']) 
 def get_evaluations():
     try:
