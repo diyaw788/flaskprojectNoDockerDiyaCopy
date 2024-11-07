@@ -1,0 +1,156 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Professor Dashboard{% endblock title %}
+
+{% block content %}
+
+<div class="container mt-5" style="color: black;">
+    <div class="d-flex justify-content-between align-items-center">
+        <h1>Class {{ courseName }}</h1>
+        <button class="btn btn-primary custom-button" onclick="location.href='/addstudent'">Add Student</button>
+    </div>
+    
+    <div class="mb-3">
+        <label for="groupSelect" class="form-label">Select Group</label>
+        <select class="form-select" id="groupSelect" onchange="fetchGroupData1()" style="color: black;">
+            <option value="" selected disabled>Choose a group</option>
+            <option value="Unassigned" style="color: black;">Unassigned</option>
+            {% for group in groups %}
+            <option value="{{ group }}" style="color: black;">{{ group }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <form id="assignForm" onsubmit="assignStudentsToGroup(event)">
+        <table class="table table-striped mt-3" style="color: black;">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Group</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentTable" style="color: black;">
+                <!-- Dynamic content will be loaded here -->
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-primary custom-button mt-3">Submit</button>
+    </form>
+</div>
+
+<script>
+    const courseOfferingID = {{ courseOfferingID|tojson }};
+
+    document.addEventListener("DOMContentLoaded", init);
+    function init() {
+      fetchGroupData();
+      console.log("were in init")
+      fetchGroupData1()
+    }
+    // Fetch and populate the student table
+    function fetchGroupData() {
+        console.log("Fetching student data for courseOfferingID:", courseOfferingID);
+        fetch(`/get_group_data?group=${courseOfferingID}`)
+            .then(response => response.json())
+            .then(data => {
+                const studentTable = document.getElementById('studentTable');
+                studentTable.innerHTML = ''; // Clear existing rows
+    
+                // Ensure data is an array
+                if (!Array.isArray(data)) {
+                    console.error("Data is not an array:", data);
+                    return;
+                }
+    
+                data.forEach(item => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `
+                        <td>${item.student}</td>  <!-- Corrected to display the student's name -->
+                        <td>${item.group || "Unassigned"}</td>  <!-- Display group or "Unassigned" if no group -->
+                        <td>
+                            <button class="btn btn-secondary custom-button" onclick="editStudent('${item.student_id}')">Edit</button>
+                            <button class="btn btn-danger custom-button" onclick="deleteStudent('${item.student_id}')">Delete</button>
+                        </td>
+                    `;
+                    studentTable.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error("Error fetching student data:", error);
+            });
+    }
+    
+
+// Fetch and populate the group dropdown
+function fetchGroupData1() {
+    console.log("Fetching group data for courseOfferingID:", courseOfferingID);
+    fetch(`/get_group_data1?group=${courseOfferingID}`)
+        .then(response => response.json())
+        .then(data => {
+            const groupSelect = document.getElementById('groupSelect');
+            groupSelect.innerHTML = ''; // Clear existing options
+
+            // Add the default "Choose a group" option
+            const defaultOption = document.createElement("option");
+            defaultOption.value = "";
+            defaultOption.textContent = "Choose a group";
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            groupSelect.appendChild(defaultOption);
+
+            // Add the "Unassigned" option
+            const unassignedOption = document.createElement("option");
+            unassignedOption.value = "Unassigned";
+            unassignedOption.textContent = "Unassigned";
+            groupSelect.appendChild(unassignedOption);
+
+            // Ensure data is an array
+            if (!Array.isArray(data)) {
+                console.error("Data is not an array:", data);
+                return;
+            }
+
+            // Populate dropdown with group options from the data
+            data.forEach(item => {
+                const groupOption = document.createElement("option");
+                groupOption.value = item.group_id;
+                groupOption.textContent = item.group_name;
+                groupSelect.appendChild(groupOption);
+            });
+        })
+        .catch(error => {
+            console.error("Error fetching group data:", error);
+        });
+}
+
+
+
+function editStudent(studentId) {
+    location.href = `/editstudent?student_id=${studentId}`;
+}
+
+function deleteStudent(studentId) {
+    if (confirm("Are you sure you want to delete this student?")) {
+        fetch(`/deletestudent?student_id=${studentId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Student deleted successfully.');
+                fetchGroupData(); // Refresh the table
+            } else {
+                alert('An error occurred: ' + data.error);
+            }
+        });
+    }
+}
+</script>
+
+<style>
+.custom-button {
+    background-color: navy !important;
+    color: white !important;
+}
+</style>
+{% endblock content %}

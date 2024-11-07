@@ -27,10 +27,206 @@ def successPage():
 @app.route('/viewCourseStudents/<int:courseOfferingID>/<string:courseName>')
 def viewCourseStudents(courseOfferingID, courseName):
     # Use courseID and courseName as needed
-    return render_template('success.html')
-    # return render_template('LUCASPAGE.html', courseOfferingID=courseOfferingID, courseName=courseName)
+    # return render_template('success.html')
+    return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName)
+
+@app.route('/professor_dashboard')
+def professor_dashboard():
+    try:
+        # Assuming CURRENT_UID is the logged-in professor's ID
+
+        # Fetch course names for the professor
+        cursor.execute("""
+            SELECT c.Course_Name
+            FROM Courses c
+            JOIN CourseOfferings co ON c.Course_ID = co.Course_ID
+            JOIN ProfessorCourse pc ON co.COID = pc.ProfessorCourse_ID
+            WHERE pc.Professor_ID = ?
+        """, (CURRENT_UID,))
+        class_name_row = cursor.fetchone()
+        if class_name_row:
+            class_name = class_name_row[0]
+            app.logger.info(f"Class Name: {class_name}")
+        else:
+            class_name = "No courses found"
+            app.logger.info("No courses found for the given professor ID")
+
+        # Fetch group names for the courses taught by the professor
+        cursor.execute("""
+            SELECT g.Group_Name
+            FROM Groups g
+            JOIN CourseGroups cg ON g.Group_ID = cg.Group_ID
+            JOIN CourseOfferings co ON cg.Course_ID = co.Course_ID
+            JOIN ProfessorCourse pc ON co.COID = pc.ProfessorCourse_ID
+            WHERE pc.Professor_ID = ?
+        """, (CURRENT_UID,))
+        groups = [row[0] for row in cursor.fetchall()]
+        app.logger.info(f"Groups: {groups}")
+
+        return render_template('professor_dashboard.html', class_name=class_name, groups=groups)
+    except Exception as e:
+        app.logger.error(f"An error occurred: {e}")
+        return f"An error occurred: {e}", 500
+
+@app.route('/get_group_data')
+def get_group_data():
+    print("we reached here get group data")
+    courseOfferingID = request.args.get('group')
+    try:
+        sql = '''
+            SELECT dbo.StudentCourses.Student_ID, Student_Name 
+            FROM dbo.StudentCourses 
+            JOIN dbo.Student ON dbo.StudentCourses.Student_ID = dbo.Student.Student_ID 
+            WHERE COID = ?;
+        '''
+        cursor.execute(sql, (courseOfferingID,))
+        students = cursor.fetchall()
+        print(students)
+        student_data = [{'student': row[1], 'group': row[0]} for row in students]
+        return jsonify(student_data)
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
 
 
+
+@app.route('/get_group_data1')
+def get_group_data1():
+    courseOfferingID = request.args.get('group')
+    try:
+        sql = '''
+            SELECT dbo.CourseGroups.Group_ID, dbo.Groups.Group_Name 
+            FROM dbo.CourseGroups 
+            JOIN dbo.CourseOfferings ON dbo.CourseGroups.COID = dbo.CourseOfferings.COID
+            JOIN dbo.Courses ON dbo.Courses.Course_ID = dbo.CourseOfferings.Course_ID 
+            JOIN dbo.Groups ON dbo.CourseGroups.Group_ID = dbo.Groups.Group_ID 
+            WHERE dbo.CourseGroups.COID = ?;
+        '''
+        cursor.execute(sql, (courseOfferingID,))
+        groups = cursor.fetchall()
+        print(groups)
+        group_data = [{'group_id': row[0], 'group_name': row[1]} for row in groups]
+        return jsonify(group_data)
+    except Exception as e:
+        print("Error:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+
+# @app.route('/get_group_data')
+# def get_group_data():
+#     group = request.args.get('group')
+#     try:
+#         if group == "Unassigned":
+#             cursor.execute("""
+#                 SELECT s.Student_Name, 'Unassigned' AS Group_Name
+#                 FROM Students s
+#                 LEFT JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
+#                 LEFT JOIN Groups g ON sg.Group_ID = g.Group_ID
+#                 LEFT JOIN CourseOfferings co ON s.COID = co.COID
+#                 JOIN ProfessorCourse pc ON co.COID = pc.COID
+#                 WHERE sg.Group_ID IS NULL AND pc.Professor_ID = ?
+#             """, (CURRENT_UID,))
+#         else:
+#             cursor.execute("""
+#                 SELECT s.Student_Name, g.Group_Name
+#                 FROM Students s
+#                 JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
+#                 JOIN Groups g ON sg.Group_ID = g.Group_ID
+#                 LEFT JOIN CourseOfferings co ON s.COID = co.COID
+#                 JOIN ProfessorCourse pc ON co.COID = pc.COID
+#                 WHERE g.Group_Name = ? AND pc.Professor_ID = ?
+#             """, (group, CURRENT_UID))
+        
+#         students = cursor.fetchall()
+#         student_data = [{'student': row[0], 'group': row[1]} for row in students]
+#         return jsonify(student_data)
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
+
+@app.route('/assign_group', methods=['POST'])
+def assign_group():
+    data = request.json
+    try:
+        for assignment in data['assignments']:
+            student_name, group_name = assignment.split('|')
+            cursor.execute("""
+                UPDATE StudentGroups
+                SET Group_ID = (SELECT Group_ID FROM Groups WHERE Group_Name = ?)
+                FROM StudentGroups sg
+                JOIN Student s ON sg.Student_ID = s.Student_ID
+                WHERE s.Student_Name = ?
+            """, (group_name, student_name))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/addstudent')
+def add_student():
+    return render_template('addstudent.html')
+
+@app.route('/submit_student', methods=['POST'])
+def submit_student():
+    student_id = request.form['student_id']
+    name = request.form['name']
+    email = request.form['email']
+    password = request.form['password']
+    try:
+        cursor.execute("""
+            INSERT INTO Student (Student_ID, Student_Name, Email, Password)
+            VALUES (?, ?, ?, ?)
+        """, (student_id, name, email, password))
+        conn.commit()
+        return redirect(url_for('professor_dashboard'))
+    except Exception as e:
+        return f"An error occurred: {e}", 500
+
+
+
+@app.route('/editstudent')
+def edit_student():
+    student_id = request.args.get('student_id')
+    cursor.execute("SELECT Student_ID, Student_Name, Email, Password FROM Student WHERE Student_ID = ?", (student_id,))
+    student = cursor.fetchone()
+    if student:
+        student_data = {
+            'student_id': student[0],
+            'name': student[1],
+            'email': student[2],
+            'password': student[3]
+        }
+        return render_template('editstudent.html', student=student_data)
+    else:
+        return "Student not found", 404
+
+@app.route('/updatestudent', methods=['POST'])
+def update_student():
+    student_id = request.form['student_id']
+    name = request.form['name']
+    email = request.form['email']
+    password = request.form['password']
+    try:
+        cursor.execute("""
+            UPDATE Student SET Student_Name = ?, Email = ?, Password = ?
+            WHERE Student_ID = ?
+        """, (name, email, password, student_id))
+        conn.commit()
+        return redirect(url_for('professor_dashboard'))
+    except Exception as e:
+        return f"An error occurred: {e}", 500
+
+@app.route('/deletestudent', methods=['DELETE'])
+def delete_student():
+    student_id = request.args.get('student_id')
+    try:
+        cursor.execute("DELETE FROM Student WHERE Student_ID = ?", (student_id,))
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route('/get_courses', methods = ['GET']) 
 def get_courses():
     try:
