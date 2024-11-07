@@ -1,0 +1,93 @@
+{% extends "layouts/base.html" %} {% block title %} SMU - Test {% endblock title
+    %}
+    
+    {% block stylesheets %}{% endblock stylesheets %} 
+    {% block content %}
+    <script>
+      document.addEventListener("DOMContentLoaded", init);
+      function init() {
+        const user = {{ user | tojson }};
+        professorName = user.Name
+        professorID = user.ID
+        console.log("this is the professors ID " + professorID)
+    
+        var buttons = document.getElementsByTagName("button");
+        populateCoursesTable(professorName, professorID);
+      }
+    
+      function populateCoursesTable(professorName, professorID) {
+        // create the table header here, columns: Name, Evaluation
+        // get all the evaluations that apply to a certain evaluator
+        fetch("/get_courses?professorName=" + professorName + "&professorID=" + professorID, {
+          method: "GET",
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("reached here");
+            console.log(data);
+            // Check if data is not empty
+            if (data.length > 0) {
+              const tableBody = document.querySelector("#evaluationsTable tbody");
+              tableBody.innerHTML = "";
+              // iterate through each person to be evaluated and create row
+              data.forEach((course) => {
+                var courseOfferingID = course.COID;
+                var courseOfferingSection = course.Section;
+                var courseName = course.Course_Name;
+                createRow(courseName, courseOfferingID, courseOfferingSection);
+              });
+            } else {
+              console.log("No evaluations found for this evaluator.");
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+          });
+      }
+    
+      function createRow(courseName, courseOfferingID, courseOfferingSection) {
+        // create a new row dynamically with flask syntax that has the corresponding parameter in the corresponding rows
+        const row = document.createElement("tr");
+    
+        const courseOfferingIDCell = document.createElement("td");
+        courseOfferingIDCell.innerHTML = courseOfferingID;
+        row.appendChild(courseOfferingIDCell);
+
+        const courseNameCell = document.createElement("td");
+        courseNameCell.innerHTML = '<a href="/viewCourseStudents/' +courseOfferingID+'/'+courseName+'">'+courseName+'</a>';
+        row.appendChild(courseNameCell);
+    
+        const courseOfferingSectionCell = document.createElement("td");
+        courseOfferingSectionCell.innerHTML = courseOfferingSection;
+        row.appendChild(courseOfferingSectionCell);
+        
+        document.querySelector("#evaluationsTable tbody").appendChild(row);
+      }
+    </script>
+    <div style="align-items: flex-start; margin-top: 30px">
+      <div style="display: flex; align-items: flex-start; margin-left: 130px; flex-direction: column;">
+        <div
+          class="table-responsive"
+          style="height: 400px; display: flex; width: 1250px; overflow-y: auto; flex-direction: column;"
+        >
+          <table id="evaluationsTable" class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th scope="col">Course Offering ID</th>
+                <th scope="col">Course Title</th>
+                <th scope="col">Section</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- rows to be added here dynamically -->
+            </tbody>
+          </table>
+          <div>
+            <button class="course-data-btn" onclick="location.href='/upload'">Upload Course Data</button> 
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    {% endblock content %}
+    

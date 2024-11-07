@@ -1,0 +1,112 @@
+{% extends "layouts/base.html" %}
+{% block title %} SMU - Test {% endblock title %}
+
+{% block content %}
+<script>
+  document.addEventListener("DOMContentLoaded", init);
+
+  function init() {
+    const user = {{ user | tojson }}; 
+    const evaluatorName = user.Name;
+
+    // Populate evaluations when the page first loads (unsorted)
+    populateEvaluationsTable(evaluatorName);
+
+    // Add event listener to "Sort by Due Date" button
+    document.querySelector("#sortButton").addEventListener("click", function () {
+      populateEvaluationsTable(evaluatorName, true);  // Sort flag = true
+    });
+
+    const tableBody = document.querySelector("#evaluationsTable tbody");
+    tableBody.addEventListener("click", function (event) {
+      if (event.target.tagName === "BUTTON") {
+        completeEvaluation(event, evaluatorName);
+      }
+    });
+  }
+
+  // Fetch and display evaluations (sorted or unsorted)
+  function populateEvaluationsTable(evaluatorName, sorted = false) {
+    const url = sorted
+      ? `/sorted_evaluations?evaluatorName=${evaluatorName}`
+      : `/get_evaluations?evaluatorName=${evaluatorName}`;
+
+    fetch(url)
+      .then((response) => response.json())
+      .then((data) => {
+        const tableBody = document.querySelector("#evaluationsTable tbody");
+        tableBody.innerHTML = "";  // Clear existing rows
+
+        if (data.length > 0) {
+          data.forEach((person) => {
+            const { Student_Being_Evaluated_Name, Status, Due_Date } = person;
+            createRow(Student_Being_Evaluated_Name, Status, Due_Date);
+          });
+        } else {
+          console.log("No evaluations found.");
+        }
+      })
+      .catch((error) => console.error(error));
+  }
+
+  function createRow(personName, status, dueDate) {
+    const row = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    nameCell.innerHTML = personName;
+    row.appendChild(nameCell);
+
+    const dueDateCell = document.createElement("td");
+    dueDateCell.innerHTML = dueDate;
+    row.appendChild(dueDateCell);
+
+    const evalCell = document.createElement("td");
+    const button = document.createElement("button");
+    button.className = "btn btn-primary btn-sm";
+    button.style = "background-color: #141b4d; color: white";
+
+    const currentDate = new Date();
+    const dueDateObj = new Date(dueDate);
+
+    if (currentDate <= dueDateObj && status === "Incomplete") {
+      button.textContent = "Start Evaluation";
+    } else if (status === "Complete") {
+      button.textContent = "Completed";
+      button.disabled = true;
+    } else if (currentDate > dueDateObj) {
+      button.textContent = "Overdue";
+      button.disabled = true;
+    }
+
+    evalCell.appendChild(button);
+    row.appendChild(evalCell);
+
+    document.querySelector("#evaluationsTable tbody").appendChild(row);
+  }
+
+  function completeEvaluation(event, evaluatorName) {
+    const personName = event.target.closest("tr").querySelector("td").innerHTML;
+    window.location.href = `/form/${personName}/${evaluatorName}`;
+  }
+</script>
+
+<div style="align-items: flex-start; margin-top: 30px">
+  <div style="display: flex; align-items: flex-start; margin-left: 130px; flex-direction: column">
+    <button id="sortButton" class="course-data-btn">Sort by Due Date</button>
+    <div class="table-responsive" style="height: 400px; width: 1250px; overflow-y: auto">
+      <table id="evaluationsTable" class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Due Date</th>
+            <th scope="col">Evaluation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Rows will be added dynamically here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock content %}
