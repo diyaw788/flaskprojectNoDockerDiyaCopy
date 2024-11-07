@@ -8,4 +8,5 @@ Jinja2==3.1.2
 cffi
 cryptography
 pypyodbc
+pyodbc
 pandas
