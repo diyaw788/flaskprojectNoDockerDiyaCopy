@@ -67,7 +67,10 @@ def upload_file():
 
                     # Check data types
                     try:
-                        student_id = int(row['student_id'])
+                        student_id = row['student_id']
+                        print(student_id)
+                        student_id = str(row['student_id'])
+                        print("this is the string student id" + student_id)
                         student_name = str(row['student_name'])
                         coid = int(row['coid'])
                         group_id = int(row['group_id'])
@@ -86,10 +89,20 @@ def upload_file():
                             # course = cursor.fetchone()
                             # if !course:
                         else:
+                            # Construct the SQL query with the parameters manually injected for printing
+                            query = f"""
+                                INSERT INTO dbo.Student (Student_ID, Student_Name, Email, Password)
+                                VALUES ({student_id}, '{student_name}', '{student_id}', 'x');
+                            """
+                            # Print the query to see the final format
+                            print("Executing query:", query)
+
+                            # Execute the query using a parameterized approach to prevent SQL injection
                             cursor.execute("""
                                 INSERT INTO dbo.Student (Student_ID, Student_Name, Email, Password)
                                 VALUES (?, ?, ?, 'x');
                             """, (student_id, student_name, str(student_id)))
+
 
                             cursor.execute("""
                                 INSERT INTO dbo.StudentCourses (Student_ID, COID)
