@@ -1,0 +1,34 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Add Student{% endblock title %}
+
+{% block content %}
+<div class="container mt-5" style="color: black;">
+    <h2>Add New Student</h2>
+    <form action="{{ url_for('diyas_submit_student', courseOfferingID=courseOfferingID, courseName=courseName) }}" method="post">
+        <div class="mb-3">
+            <label for="student_id" class="form-label">Student ID</label>
+            <input type="text" class="form-control" id="student_id" name="student_id" required>
+        </div>
+        <div class="mb-3">
+            <label for="name" class="form-label">Student Name</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        
+        <!-- Dropdown for Group Selection -->
+        <div class="mb-3">
+            <label for="groupSelect" class="form-label">Select Group</label>
+            <select class="form-select" id="groupSelect" name="groupSelect" style="color: black;" required>
+                <option value="" selected disabled>Select group</option>
+                <option value="Unassigned" style="color: black;">Unassigned</option>
+                {% for group in groups %}
+                    <option value="{{ group.GroupID }}" style="color: black;">{{ group.GroupID }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Use type="submit" to submit the form -->
+        <button type="submit" class="btn btn-primary">Add Student</button>
+    </form>
+</div>
+{% endblock content %}

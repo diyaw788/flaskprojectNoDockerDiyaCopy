@@ -19,16 +19,217 @@ from app import app, cursor, conn
 
 # set a global variable for the userID
 CURRENT_UID = "1234"
-# MAKE A ROUTE TO CHANGE THIS VALUE ONCE THE LOGIN PAGE IS CREATED
+# Upload folder configuration
+# Set upload folder path
+app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
+
+# Create the uploads directory if it does not exist
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('No file part')
+            return redirect(request.url)
+
+        file = request.files['file']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+
+        if file and file.filename.endswith('.csv'):
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+            file.save(filepath)
+            
+            try:
+                # Read the CSV file and strip whitespace from column headers
+                data = pd.read_csv(filepath, encoding='utf-8')
+                data.columns = data.columns.str.strip().str.lower()  # Remove whitespace and convert to lowercase
+                print("Columns in CSV file:", data.columns.tolist())  # Debugging: Print columns to verify
+
+                # Define required columns and expected data types
+                required_columns = {'student_id', 'student_name', 'coid', 'group_id'}
+                
+                # Check if all required columns are present
+                if not required_columns.issubset(data.columns):
+                    missing_columns = required_columns - set(data.columns)
+                    flash(f'Missing columns in the file: {", ".join(missing_columns)}')
+                    return redirect(request.url)
+
+                # Validate each row for completeness and correct data types
+                for index, row in data.iterrows():
+                    # Check for missing values
+                    if pd.isnull(row['student_id']) or pd.isnull(row['student_name']) or pd.isnull(row['coid']) or pd.isnull(row['group_id']):
+                        flash(f'Row {index + 1} has missing values.')
+                        return redirect(request.url)
+
+                    # Check data types
+                    try:
+                        student_id = int(row['student_id'])
+                        student_name = str(row['student_name'])
+                        coid = int(row['coid'])
+                        group_id = int(row['group_id'])
+                    except ValueError as e:
+                        flash(f'Row {index + 1} has incorrect data types: {e}')
+                        return redirect(request.url)
+
+                    # Insert row into the database if all checks pass
+                    try:
+                        cursor.execute("SELECT * FROM Student WHERE Student_ID = ?", (student_id,))
+                        student = cursor.fetchone()
+                        if student:
+                            flash(f'Student in Row {index + 1} already exists in the system')
+                            # if the student already exists but is being added into a new course
+                            # cursor.execute("SELECT * FROM StudentCourses WHERE Student_ID = ? AND COID = ?", (student_id, coid))
+                            # course = cursor.fetchone()
+                            # if !course:
+                        else:
+                            cursor.execute("""
+                                INSERT INTO dbo.Student (Student_ID, Student_Name, Email, Password)
+                                VALUES (?, ?, ?, 'x');
+                            """, (student_id, student_name, str(student_id)))
+
+                            cursor.execute("""
+                                INSERT INTO dbo.StudentCourses (Student_ID, COID)
+                                VALUES (?, ?);
+                            """, (student_id, coid))
+    
+                            if group_id != 0:
+                                cursor.execute("""
+                                    INSERT INTO dbo.StudentGroups (Group_ID, Student_ID, Student_Name)
+                                    VALUES (?, ?, ?);
+                                """, (group_id, student_id, student_name))
+                            conn.commit()
+                    except Exception as e:
+                        print(f"Error inserting row {index}: {e}")
+
+                flash('File uploaded and processed successfully!')
+            except Exception as e:
+                flash(f'Error processing file: {e}')
+            
+            return redirect(url_for('upload_file'))
+        
+        flash('File type is not allowed. Please upload a CSV file.')
+        return redirect(request.url)
+    
+    return render_template('upload.html')
+
+
 @app.route('/successPage')
 def successPage():
     return render_template('successPage.html')
 
+@app.route('/diyas_submit_student', methods=['POST'])
+def diyas_submit_student():
+    print("DIYA PLEASE")
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    groups = request.args.get('groups')
+    student_id = request.form['student_id']
+    name = request.form['name']
+    groupSelect = request.form['groupSelect']
+    cursor.execute("""
+                        INSERT INTO dbo.Student (Student_ID, Student_Name, Email, Password)
+                        VALUES (?, ?, ?, 'x');
+                    """, (student_id, name, str(student_id)))
+    conn.commit()
+    if groupSelect != "Unassigned":
+        cursor.execute("""
+                            INSERT INTO dbo.StudentGroups (Group_ID, Student_ID, Student_Name)
+                            VALUES (?, ?, ?);
+                        """, (groupSelect, student_id, name))
+        conn.commit()
+    # return render_template('successPage.html')
+    query = "SELECT * FROM CourseGroups WHERE COID = ?"
+    cursor.execute(query, (courseOfferingID,))
+    print("diya here today")
+    # groups
+    groups = cursor.fetchall()
+    group_list = []
+    for group in groups:
+        group_data = {
+            'GroupID': group.Group_ID,
+            'CourseOfferingID': group.COID
+            # Add any other relevant fields
+        }
+        group_list.append(group_data)
+    print("DIYA HELP ME")
+    return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups)
+
+
+@app.route('/addstudent1', methods=['GET'])
+def add_student1():
+    print("registering the click of add student")
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    # groups = request.args.get('groups')
+    try:
+        # Query the CourseGroups table to get all groups for the specific courseOfferingID
+        query = "SELECT * FROM CourseGroups WHERE COID = ?"
+        cursor.execute(query, (courseOfferingID,))
+        
+        # Fetch all matching records
+        groups = cursor.fetchall()
+        print(groups)
+        # Optional: Process the result to convert it into a more usable format (e.g., list of dictionaries)
+        group_list = []
+        for group in groups:
+            group_data = {
+                'GroupID': group.Group_ID,
+                'CourseOfferingID': group.COID
+                # Add any other relevant fields
+            }
+            group_list.append(group_data)
+            print(group_list)
+
+    except Exception as e:
+        print(f"Error fetching groups: {e}")
+        flash("An error occurred while fetching groups.")
+        group_list = []
+
+    return render_template('addstudent1.html', groups=group_list, courseOfferingID=courseOfferingID, courseName=courseName)
+
 @app.route('/viewCourseStudents/<int:courseOfferingID>/<string:courseName>')
 def viewCourseStudents(courseOfferingID, courseName):
-    # Use courseID and courseName as needed
-    # return render_template('success.html')
-    return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName)
+    try:
+        # Fetch all groups associated with the course
+        cursor.execute("""
+            SELECT g.Group_ID, g.Group_Name
+            FROM Groups g
+            JOIN CourseGroups cg ON g.Group_ID = cg.Group_ID
+            WHERE cg.COID = ?
+        """, (courseOfferingID,))
+        groups = [{'Group_ID': row[0], 'Group_Name': row[1]} for row in cursor.fetchall()]
+        
+        # Add an "Unassigned" group to the list
+        groups.append({'Group_ID': -1, 'Group_Name': 'Unassigned'})
+        
+    except Exception as e:
+        groups = []
+    return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups)
+
+
+# @app.route('/viewCourseStudents/<int:courseOfferingID>/<string:courseName>')
+# def viewCourseStudents(courseOfferingID, courseName):
+#     try:
+#         cursor.execute("""
+#             SELECT g.Group_ID, g.Group_Name
+#             FROM Groups g
+#             JOIN CourseGroups cg ON g.Group_ID = cg.Group_ID
+#             WHERE cg.COID = ?
+#         """, (courseOfferingID,))
+#         groups = [{'Group_ID': row[0], 'Group_Name': row[1]} for row in cursor.fetchall()]
+#     except Exception as e:
+#         groups = []
+#     return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups)
+
+# @app.route('/viewCourseStudents/<int:courseOfferingID>/<string:courseName>')
+# def viewCourseStudents(courseOfferingID, courseName):
+#     # Use courseID and courseName as needed
+#     # return render_template('success.html')
+#     return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName)
 
 @app.route('/professor_dashboard')
 def professor_dashboard():
@@ -67,6 +268,62 @@ def professor_dashboard():
     except Exception as e:
         app.logger.error(f"An error occurred: {e}")
         return f"An error occurred: {e}", 500
+
+@app.route('/get_group_students', methods=['GET'])
+def get_group_students():
+    groupID = request.args.get('groupID')
+    courseOfferingID = request.args.get('courseOfferingID')
+
+    try:
+        if groupID == 'None':  # Fetch students not assigned to any group within the course
+            cursor.execute("""
+                SELECT s.Student_Name, s.Student_ID, NULL as Group_ID
+                FROM Student s
+                LEFT JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
+                LEFT JOIN CourseStudents cs ON s.Student_ID = cs.Student_ID
+                WHERE sg.Group_ID IS NULL AND cs.COID = ?
+            """, (courseOfferingID,))
+        else:
+            cursor.execute("""
+                SELECT s.Student_Name, s.Student_ID, sg.Group_ID
+                FROM Student s
+                JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
+                WHERE sg.Group_ID = ?
+            """, (groupID,))
+        
+        students = [{'Student_Name': row[0], 'Student_ID': row[1], 'Group_ID': row[2]} for row in cursor.fetchall()]
+        print("hi DIYa PLEASE look here")
+        print(students)
+        if not students:
+            return jsonify({'error': 'No students found for this group'}), 404
+
+        return jsonify(students)
+    except Exception as e:
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+# @app.route('/get_group_students', methods=['GET'])
+# def get_group_students():
+#     groupID = request.args.get('groupID')
+#     if not groupID:
+#         return jsonify({'error': 'No group ID provided'}), 400
+
+#     try:
+#         cursor.execute("""
+#             SELECT s.Student_Name, sg.Group_ID
+#             FROM Student s
+#             JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
+#             WHERE sg.Group_ID = ?
+#         """, (groupID,))
+#         students = [{'Student_Name': row[0], 'Group_ID': row[1]} for row in cursor.fetchall()]
+
+#         if not students:
+#             return jsonify({'error': 'No students found for this group'}), 404
+
+#         return jsonify(students)
+#     except Exception as e:
+#         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
 
 @app.route('/get_group_data')
 def get_group_data():
@@ -161,11 +418,63 @@ def assign_group():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
+    
 @app.route('/addstudent')
 def add_student():
-    return render_template('addstudent.html')
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    return render_template('addstudent.html', courseOfferingID=courseOfferingID, courseName=courseName)
+
+# @app.route('/addstudent')
+# def add_student():
+#     courseOfferingID = request.args.get('courseOfferingID')
+#     courseName = request.args.get('courseName')
+#     return render_template('addstudent.html', courseOfferingID=courseOfferingID, courseName=courseName)
+
+# @app.route('/addstudent')
+# def add_student():
+#     return render_template('addstudent.html')
+
+# @app.route('/submit_student', methods=['POST'])
+# def submit_student():
+#     student_id = request.form['student_id']
+#     name = request.form['name']
+#     email = request.form['email']
+#     password = request.form['password']
+#     try:
+#         cursor.execute("""
+#             INSERT INTO Student (Student_ID, Student_Name, Email, Password)
+#             VALUES (?, ?, ?, ?)
+#         """, (student_id, name, email, password))
+#         conn.commit()
+#         return redirect(url_for('professor_dashboard'))
+#     except Exception as e:
+#         return f"An error occurred: {e}", 500
+# @app.route('/submit_student', methods=['POST'])
+# def submit_student():
+#     student_id = request.form['student_id']
+#     name = request.form['name']
+#     email = request.form['email']
+#     password = request.form['password']
+#     courseOfferingID = request.args.get('courseOfferingID', type=int)
+#     courseName = request.args.get('courseName')
+    
+#     try:
+#         # Check for duplicate Student_ID
+#         cursor.execute("SELECT COUNT(*) FROM Student WHERE Student_ID = ?", (student_id,))
+#         count = cursor.fetchone()[0]
+#         if count > 0:
+#             return f"An error occurred: Duplicate Student_ID {student_id}", 400
+
+#         cursor.execute("""
+#             INSERT INTO Student (Student_ID, Student_Name, Email, Password)
+#             VALUES (?, ?, ?, ?)
+#         """, (student_id, name, email, password))
+#         conn.commit()
+        
+#         return redirect(url_for('viewCourseStudents', courseOfferingID=courseOfferingID, courseName=courseName))
+#     except Exception as e:
+#         return f"An error occurred: {e}", 500
 
 @app.route('/submit_student', methods=['POST'])
 def submit_student():
@@ -173,50 +482,154 @@ def submit_student():
     name = request.form['name']
     email = request.form['email']
     password = request.form['password']
+    courseOfferingID = request.args.get('courseOfferingID', type=int)
+    courseName = request.args.get('courseName')
+    
     try:
+        # Check for duplicate Student_ID
+        cursor.execute("SELECT COUNT(*) FROM Student WHERE Student_ID = ?", (student_id,))
+        count = cursor.fetchone()[0]
+        if count > 0:
+            return f"An error occurred: Duplicate Student_ID {student_id}", 400
+
         cursor.execute("""
             INSERT INTO Student (Student_ID, Student_Name, Email, Password)
             VALUES (?, ?, ?, ?)
         """, (student_id, name, email, password))
         conn.commit()
-        return redirect(url_for('professor_dashboard'))
+        
+        return redirect(url_for('viewCourseStudents', courseOfferingID=courseOfferingID, courseName=courseName))
     except Exception as e:
         return f"An error occurred: {e}", 500
 
+@app.route('/edit_student/<int:studentID>')
+def edit_student(studentID):
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    try:
+        cursor.execute("SELECT Student_ID, Student_Name, Email, Password FROM Student WHERE Student_ID = ?", (studentID,))
+        student = cursor.fetchone()
+        if student:
+            student_data = {
+                'Student_ID': student[0],
+                'Student_Name': student[1],
+                'Email': student[2],
+                'Password': student[3]
+            }
+            return render_template('editstudent.html', student=student_data, courseOfferingID=courseOfferingID, courseName=courseName)
+        else:
+            return "Student not found", 404
+    except Exception as e:
+        return f"An error occurred: {e}", 500
+# @app.route('/editstudent')
+# def edit_student():
+#     student_id = request.args.get('student_id')
+#     cursor.execute("SELECT Student_ID, Student_Name, Email, Password FROM Student WHERE Student_ID = ?", (student_id,))
+#     student = cursor.fetchone()
+#     if student:
+#         student_data = {
+#             'student_id': student[0],
+#             'name': student[1],
+#             'email': student[2],
+#             'password': student[3]
+#         }
+#         return render_template('editstudent.html', student=student_data)
+#     else:
+#         return "Student not found", 404
 
-
-@app.route('/editstudent')
-def edit_student():
-    student_id = request.args.get('student_id')
-    cursor.execute("SELECT Student_ID, Student_Name, Email, Password FROM Student WHERE Student_ID = ?", (student_id,))
-    student = cursor.fetchone()
-    if student:
-        student_data = {
-            'student_id': student[0],
-            'name': student[1],
-            'email': student[2],
-            'password': student[3]
-        }
-        return render_template('editstudent.html', student=student_data)
-    else:
-        return "Student not found", 404
-
-@app.route('/updatestudent', methods=['POST'])
-def update_student():
-    student_id = request.form['student_id']
+@app.route('/update_student/<int:studentID>', methods=['POST'])
+def update_student(studentID):
     name = request.form['name']
     email = request.form['email']
     password = request.form['password']
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    
     try:
         cursor.execute("""
-            UPDATE Student SET Student_Name = ?, Email = ?, Password = ?
+            UPDATE Student
+            SET Student_Name = ?, Email = ?, Password = ?
             WHERE Student_ID = ?
-        """, (name, email, password, student_id))
+        """, (name, email, password, studentID))
         conn.commit()
-        return redirect(url_for('professor_dashboard'))
+        
+        return redirect(url_for('viewCourseStudents', courseOfferingID=courseOfferingID, courseName=courseName))
     except Exception as e:
         return f"An error occurred: {e}", 500
 
+# @app.route('/updatestudent', methods=['POST'])
+# def update_student():
+#     student_id = request.form['student_id']
+#     name = request.form['name']
+#     email = request.form['email']
+#     password = request.form['password']
+#     try:
+#         cursor.execute("""
+#             UPDATE Student SET Student_Name = ?, Email = ?, Password = ?
+#             WHERE Student_ID = ?
+#         """, (name, email, password, student_id))
+#         conn.commit()
+#         return redirect(url_for('professor_dashboard'))
+#     except Exception as e:
+#         return f"An error occurred: {e}", 500
+
+@app.route('/change_student_group', methods=['POST'])
+def change_student_group():
+    studentID = request.args.get('studentID', type=int)
+    groupID = request.args.get('groupID')
+    
+    try:
+        if groupID == 'None' or groupID is None:  # Handle unassigned group
+            # Delete the student's group assignment, effectively unassigning them
+            cursor.execute("""
+                DELETE FROM StudentGroups
+                WHERE Student_ID = ?
+            """, (studentID,))
+        else:
+            # Check if the student is already in the target group
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM StudentGroups
+                WHERE Student_ID = ? AND Group_ID = ?
+            """, (studentID, groupID))
+            count = cursor.fetchone()[0]
+            
+            if count > 0:
+                return jsonify({"error": "Student is already in the selected group."}), 400
+
+            # Delete the old entry
+            cursor.execute("""
+                DELETE FROM StudentGroups
+                WHERE Student_ID = ?
+            """, (studentID,))
+            
+            # Insert the new entry
+            cursor.execute("""
+                INSERT INTO StudentGroups (Student_ID, Group_ID)
+                VALUES (?, ?)
+            """, (studentID, groupID))
+
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/remove_student_group', methods=['POST'])
+def remove_student_group():
+    studentID = request.args.get('studentID', type=int)
+    
+    try:
+        # Delete the student's group assignment, effectively unassigning them
+        cursor.execute("""
+            DELETE FROM StudentGroups
+            WHERE Student_ID = ?
+        """, (studentID,))
+        
+        conn.commit()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
 @app.route('/deletestudent', methods=['DELETE'])
 def delete_student():
     student_id = request.args.get('student_id')
@@ -355,7 +768,7 @@ def sign_up():
 
 @app.route('/')
 def indexFunction():
-    return render_template('studentLogin.html')
+    return render_template('sign_in.html')
 
 @app.route('/studentLogin', methods=['GET', 'POST'])
 

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSV</title>
+
+    <style>
+        /* Reset styles and basic layout */
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f3f4f6;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Card container styling */
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 300px;
+        }
+
+        /* Header styling */
+        h1 {
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        /* Form elements styling */
+        .form-input {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box; /* Ensures consistent sizing */
+        }
+
+        /* Submit button */
+        .submit-btn {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Alert styling */
+        .alert {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Upload CSV File</h1>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input class="form-input" type="file" name="file" accept=".csv" required>
+            <input class="form-input submit-btn" type="submit" value="Upload">
+        </form>
+    </div>
+
+</body>
+</html>
