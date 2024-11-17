@@ -20,7 +20,7 @@ server = 'peer-eval-db.cfse6cicm7dq.us-east-1.rds.amazonaws.com,1433'
 database = 'peer-eval-db'
 username = 'admin'
 password = 'businessSeminar2025'
-driver = '{ODBC Driver 18 for SQL Server}'
+driver = '{ODBC Driver 17 for SQL Server}'
 
 
 conn = pyodbc.connect(
