@@ -12,8 +12,8 @@
 </head>
 
 <body class="text-bg-secondary" id="body">
-    <nav class="navbar" data-bs-theme="dark" style="background-color: #d4d4d4;">
-        <div class="container">
+    <nav class="navbar fixed-top" data-bs-theme="dark" style="background-color: #d4d4d4;">
+        <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center" href="/customer_allproducts">
                 <span>
                     <img src="https://www.smu.edu.sg/sites/default/files/2023-07/logo-smu.png" width="223" height="120" style="position: absolute;">
@@ -56,7 +56,11 @@
                                     <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
                                   </svg>
                             </div>
-                            <a class="nav-link active" href="#">Account</a>
+                            <a class="nav-link dropdown-toggle" style="padding-top: 2px" id="visualizationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Account</a>
+                            <ul class="dropdown-menu" aria-labelledby="accountDropdown">
+                                <li><a class="dropdown-item" href="/log_out">Log Out</a></li>
+                            </ul>
                         </div>
                     </div>
                 </ul>
@@ -65,7 +69,7 @@
         
     </nav>
     
-    <main>
+    <main style="padding-top: 150px;">
         {% block content %} {% endblock content %}
     </main>
     

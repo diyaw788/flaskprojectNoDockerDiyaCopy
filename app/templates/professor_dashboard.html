@@ -1,148 +1,223 @@
-{% extends "layouts/base.html" %}
-{% block title %}Professor Dashboard{% endblock title %}
-
-{% block stylesheets %}
+{% extends "layouts/base.html" %} {% block title %}Professor Dashboard{%
+endblock title %} {% block stylesheets %}
 <style>
-    body, h1, label, table, select, button {
-        color: navy;
-    }
-    .btn-primary {
-        background-color: navy !important;
-        border-color: navy !important;
-        color: white !important;
-    }
-    .btn-warning {
-        background-color: #ffc107 !important;
-        border-color: #ffc107 !important;
-        color: white !important;
-    }
-    .btn-danger {
-        background-color: #dc3545 !important;
-        border-color: #dc3545 !important;
-        color: white !important;
-    }
+  body,
+  h1,
+  label,
+  table,
+  select,
+  button {
+    color: navy;
+  }
+  .btn-primary {
+    background-color: navy !important;
+    border-color: navy !important;
+    color: white !important;
+  }
+  .btn-warning {
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
+    color: white !important;
+  }
+  .btn-danger {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+  }
 </style>
-{% endblock stylesheets %}
-
-{% block content %}
+{% endblock stylesheets %} {% block content %}
 <div class="container mt-5">
-    <h1 style="color: navy;">Course: {{ courseName }}</h1>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <label for="groupSelect" class="form-label" style="color: navy;">Select Group</label>
-            <select class="form-select" id="groupSelect" onchange="fetchGroupData()">
-                <option value="" selected disabled>Choose a group</option>
-                {% for group in groups %}
-                <option value="{{ group.Group_ID }}">{{ group.Group_Name }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <button class="btn btn-primary custom-button" onclick="location.href='{{ url_for('add_student1', courseOfferingID=courseOfferingID, courseName=courseName) }}'">Add Student</button>
+  <h1 style="color: navy">Course: {{ courseName }}</h1>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <label for="groupSelect" class="form-label" style="color: navy"
+        >Select Group</label
+      >
+      <select class="form-select" id="groupSelect" onchange="fetchGroupData()">
+        <option value="" selected disabled>Choose a group</option>
+        {% for group in groups %}
+        <option value="{{ group.Group_ID }}">{{ group.Group_Name }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <table class="table table-striped mt-3">
-        <thead>
-            <tr>
-                <th>Student Name</th>
-                <th>Group ID</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="studentTable">
-            <!-- Dynamic content will be loaded here -->
-        </tbody>
-    </table>
+    <button
+      class="btn btn-primary custom-button"
+      onclick="location.href='{{ url_for('add_student1', courseOfferingID=courseOfferingID, courseName=courseName) }}'"
+    >
+      Add Student
+    </button>
+  </div>
+  <table class="table table-striped mt-3">
+    <thead>
+      <tr>
+        <th>Student Name</th>
+        <th>Group ID</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="studentTable">
+      <!-- Dynamic content will be loaded here -->
+    </tbody>
+  </table>
 </div>
 
 <script>
-    function fetchGroupData() {
-        const groupID = document.getElementById('groupSelect').value;
-        fetch(`/get_group_students?groupID=${groupID}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log(data); // Debugging statement
-                const studentTable = document.getElementById('studentTable');
-                studentTable.innerHTML = '';
-    
-                if (data.error) {
-                    const row = `<tr><td colspan="3" class="text-center">${data.error}</td></tr>`;
-                    studentTable.insertAdjacentHTML('beforeend', row);
-                } else {
-                    if (data.length === 0) {
-                        const row = `<tr><td colspan="3" class="text-center">No students found for this group.</td></tr>`;
-                        studentTable.insertAdjacentHTML('beforeend', row);
-                    } else {
-                        data.forEach(student => {
-                            const groupDropdown = `{% for group in groups %}
-                                                    {% if group.Group_ID != -1 %}
-                                                    <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
-                                                    {% endif %}
-                                                  {% endfor %}`;
-                            const row = `<tr id="studentRow${student.Student_ID}">
-                                            <td>${student.Student_Name}</td>
-                                            <td>${student.Group_ID ? student.Group_ID : 'Unassigned'}</td>
-                                            <td>
-                                                <div class="dropdown">
-                                                    <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
-                                                        Edit
-                                                    </button>
-                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
-                                                        ${groupDropdown}
-                                                    </ul>
-                                                </div>
-                                                <button class="btn btn-warning" onclick="deleteStudentFromGroup(${student.Student_ID})">Delete</button>
-                                            </td>
-                                         </tr>`;
-                            studentTable.insertAdjacentHTML('beforeend', row);
-                        });
-                    }
-                }
-            })
-            .catch(error => console.error('Error fetching group data:', error));
-    }
-    
-    function changeStudentGroup(studentID, groupID) {
-        if (groupID === 'None') {
-            groupID = null;
+  document.addEventListener("DOMContentLoaded", init);
+
+      function init() {
+          // Parse students data passed from Flask
+          const students = {{ students | tojson }};
+          populateAllStudentsTable(students);
+      }
+
+      function populateAllStudentsTable(students) {
+          const studentTable = document.getElementById("studentTable");
+
+          // Clear existing rows if any
+          studentTable.innerHTML = "";
+
+          // Loop through each student and create a new row
+          students.forEach(student => {
+              const row = document.createElement("tr");
+              row.setAttribute("id", `studentRow1${student.Student_ID}`);  // Set the id with dynamic student ID
+
+              const nameCell = document.createElement("td");
+              nameCell.textContent = student.Student_Name || "N/A";
+              row.appendChild(nameCell);
+
+              const groupCell = document.createElement("td");
+              groupCell.textContent = student.Group_Name || "Unassigned";
+              row.appendChild(groupCell);
+
+              const actionsCell = document.createElement("td");
+              
+              const groupDropdown = `{% for group in groups %}
+                                                  {% if group.Group_ID != -1 %}
+                                                  <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
+                                                  {% endif %}
+                                                {% endfor %}`;
+              actionsCell.innerHTML = `<div class="dropdown">
+                                <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Edit
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
+                                    ${groupDropdown}
+                                </ul>
+                        </div>
+                        <button class="btn btn-warning" onclick="deleteStudentFromClass(${student.Student_ID})">Delete</button>`;
+                row.appendChild(actionsCell);
+
+              // Append the row to the table
+              studentTable.appendChild(row);
+          });
+      }
+  function fetchGroupData() {
+      const groupID = document.getElementById('groupSelect').value;
+      fetch(`/get_group_students?groupID=${groupID}`)
+          .then(response => response.json())
+          .then(data => {
+              console.log(data); // Debugging statement
+              const studentTable = document.getElementById('studentTable');
+              studentTable.innerHTML = '';
+
+              if (data.error) {
+                  const row = `<tr><td colspan="3" class="text-center">${data.error}</td></tr>`;
+                  studentTable.insertAdjacentHTML('beforeend', row);
+              } else {
+                  if (data.length === 0) {
+                      const row = `<tr><td colspan="3" class="text-center">No students found for this group.</td></tr>`;
+                      studentTable.insertAdjacentHTML('beforeend', row);
+                  } else {
+                      data.forEach(student => {
+                          const groupDropdown = `{% for group in groups %}
+                                                  {% if group.Group_ID != -1 %}
+                                                  <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
+                                                  {% endif %}
+                                                {% endfor %}`;
+                          const row = `<tr id="studentRow${student.Student_ID}">
+                                          <td>${student.Student_Name}</td>
+                                          <td>${student.Group_ID ? student.Group_ID : 'Unassigned'}</td>
+                                          <td>
+                                              <div class="dropdown">
+                                                  <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                      Edit
+                                                  </button>
+                                                  <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
+                                                      ${groupDropdown}
+                                                  </ul>
+                                              </div>
+                                              <button class="btn btn-warning" onclick="deleteStudentFromGroup(${student.Student_ID})">Delete</button>
+                                          </td>
+                                       </tr>`;
+                          studentTable.insertAdjacentHTML('beforeend', row);
+                      });
+                  }
+              }
+          })
+          .catch(error => console.error('Error fetching group data:', error));
+  }
+
+  function changeStudentGroup(studentID, groupID) {
+      if (groupID === 'None') {
+          groupID = null;
+      }
+
+      fetch(`/change_student_group?studentID=${studentID}&groupID=${groupID}`, {
+          method: 'POST'
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.error) {
+              alert(data.error);
+          } else {
+              fetchGroupData(); // Refresh the table
+          }
+      })
+      .catch(error => console.error('Error changing student group:', error));
+  }
+
+  function deleteStudentFromGroup(studentID) {
+      fetch(`/remove_student_group?studentID=${studentID}`, {
+          method: 'POST'
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.error) {
+              alert(data.error);
+          } else {
+              // Remove the student's row from the table
+              document.getElementById(`studentRow${studentID}`).remove();
+              fetchGroupData(); // Refresh the table to update "Unassigned" group
+          }
+      })
+      .catch(error => console.error('Error removing student from group:', error));
+  }
+  function deleteStudentFromClass(studentID) {
+    fetch(`/remove_student_class?studentID=${studentID}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            console.log("entered delete student from class")
+            // Remove the student's row from the table
+            document.getElementById(`studentRow1${studentID}`).remove();
+            console.log('these are my students.')
+            console.log("these are my students: " + students)
+            populateAllStudentsTable();
         }
-        
-        fetch(`/change_student_group?studentID=${studentID}&groupID=${groupID}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                fetchGroupData(); // Refresh the table
-            }
-        })
-        .catch(error => console.error('Error changing student group:', error));
-    }
-    
-    function deleteStudentFromGroup(studentID) {
-        fetch(`/remove_student_group?studentID=${studentID}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                // Remove the student's row from the table
-                document.getElementById(`studentRow${studentID}`).remove();
-                fetchGroupData(); // Refresh the table to update "Unassigned" group
-            }
-        })
-        .catch(error => console.error('Error removing student from group:', error));
-    }
-    </script>
-    
-    <style>
-        .custom-button {
-        background-color: navy !important;
-        color: white !important;
-        }
-    </style>
-    
-    
+    })
+    .catch(error => console.error('Error removing student from group:', error));
+}
+</script>
+
+<style>
+  .custom-button {
+    background-color: navy !important;
+    color: white !important;
+  }
+</style>
+
 {% endblock content %}

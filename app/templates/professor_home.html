@@ -3,22 +3,29 @@
     
     {% block stylesheets %}{% endblock stylesheets %} 
     {% block content %}
+    <style>
+      .course-data-btn {
+          background-color: darkblue;
+          color: white;
+          border-radius: 4px;
+          border: none;
+      }
+      
+      .course-data-btn:hover {
+          background-color: #000080; /* Darker shade of blue */
+      }
+  </style>
+  
     <script>
       document.addEventListener("DOMContentLoaded", init);
-      function init() {
-        const user = {{ user | tojson }};
-        professorName = user.Name
-        professorID = user.ID
-        console.log("this is the professors ID " + professorID)
-    
-        var buttons = document.getElementsByTagName("button");
-        populateCoursesTable(professorName, professorID);
+      function init() { 
+        populateCoursesTable();
       }
     
-      function populateCoursesTable(professorName, professorID) {
+      function populateCoursesTable() {
         // create the table header here, columns: Name, Evaluation
         // get all the evaluations that apply to a certain evaluator
-        fetch("/get_courses?professorName=" + professorName + "&professorID=" + professorID, {
+        fetch("/get_courses", {
           method: "GET",
         })
           .then((response) => response.json())
@@ -54,7 +61,7 @@
         row.appendChild(courseOfferingIDCell);
 
         const courseNameCell = document.createElement("td");
-        courseNameCell.innerHTML = '<a href="/viewCourseStudents/' +courseOfferingID+'/'+courseName+'">'+courseName+'</a>';
+        courseNameCell.innerHTML = '<a href="/view_course_students/' +courseOfferingID+'/'+courseName+'">'+courseName+'</a>';
         row.appendChild(courseNameCell);
     
         const courseOfferingSectionCell = document.createElement("td");
@@ -83,7 +90,7 @@
             </tbody>
           </table>
           <div>
-            <button class="course-data-btn" onclick="location.href='/upload'">Upload Course Data</button> 
+            <button class="course-data-btn" onclick="location.href='/upload'" class="btn btn-primary w-100" style="background-color: darkblue;">Upload Course Data</button> 
           </div>
         </div>
       </div>
