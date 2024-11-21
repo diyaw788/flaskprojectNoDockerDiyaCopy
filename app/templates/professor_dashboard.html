@@ -59,6 +59,14 @@ endblock title %} {% block stylesheets %}
       <!-- Dynamic content will be loaded here -->
     </tbody>
   </table>
+  <div>
+    <button
+      class="btn btn-primary custom-button"
+      onclick="location.href='{{ url_for('schedule_eval', courseOfferingID=courseOfferingID, courseName=courseName) }}'"
+    >
+      Schedule Evaluations
+    </button>
+  </div>
 </div>
 
 <script>

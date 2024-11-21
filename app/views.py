@@ -32,6 +32,85 @@ def indexFunction():
     print("entered the index function")
     return redirect(url_for('sign_in'))
 
+@app.route('/create_evals', methods=['GET', 'POST'])
+def create_evals():
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    evaluationName = request.form.get('evaluationName')
+    evaluationDescription = request.form.get('evaluationDescription')
+    dueDate = request.form.get('dueDate')
+
+    # get all the Group_ID for the course offering ID
+    sql = "select * from [peer-eval-db].dbo.CourseGroups where COID = ?"
+    cursor.execute(sql, (courseOfferingID,))
+    groups = cursor.fetchall()
+
+    from datetime import datetime
+
+    # Get the current date and time
+    assigned_date = datetime.now().date()
+
+    # get all the students for each group
+    for group in groups:
+        student_sql = "select Group_ID, [peer-eval-db].dbo.Student.Student_ID, [peer-eval-db].dbo.Student.Student_Name from [peer-eval-db].dbo.StudentGroups Join [peer-eval-db].dbo.Student on [peer-eval-db].dbo.Student.Student_ID = [peer-eval-db].dbo.StudentGroups.Student_ID where Group_ID = ?"
+        cursor.execute(student_sql, (group.Group_ID,))
+        students = cursor.fetchall()
+        for student_evaluating in students:
+            for student_being_evaluated in students:
+                if student_evaluating.Student_ID != student_being_evaluated.Student_ID:
+                    # schedule an eval between student_evaluating and student_being_evaluated
+                    print("Student Evaluating: " + student_evaluating.Student_Name)
+                    print("Student Being Evaluated: " + student_being_evaluated.Student_Name)
+                    print(evaluationName)
+                    print(evaluationDescription)
+                    print(dueDate)
+                    evaluation_sql = '''INSERT INTO [peer-eval-db].dbo.Scheduled_Eval (
+                            Student_Being_Evaluated_ID,
+                            Student_Evaluating_ID,
+                            Status,
+                            Due_Date,
+                            COID,
+                            Assigned_Date,
+                            Submission_Date,
+                            Scheduled_Eval_Name,
+                            Scheduled_Eval_Description
+                        )
+                        VALUES (
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?
+                        );
+
+                        '''
+                    print("SQL Query: ", evaluation_sql)
+                    print("Parameters: ", (
+                        student_being_evaluated.Student_ID,
+                        student_evaluating.Student_ID,
+                        "Incomplete",
+                        dueDate,
+                        courseOfferingID,
+                        assigned_date,
+                        None,
+                        evaluationName,
+                        evaluationDescription
+                    ))
+                    cursor.execute(evaluation_sql, (student_being_evaluated.Student_ID, student_evaluating.Student_ID, "Incomplete", dueDate, courseOfferingID, assigned_date, None, evaluationName, evaluationDescription))
+                    conn.commit()
+    return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName)
+    
+
+@app.route('/schedule_eval')
+def schedule_eval():
+    courseOfferingID = request.args.get('courseOfferingID')
+    courseName = request.args.get('courseName')
+    return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName)
+
 @app.route('/sign_in', methods=['GET', 'POST'])
 def sign_in():
     # POST when sign in being submitted
