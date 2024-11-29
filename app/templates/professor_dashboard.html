@@ -70,107 +70,145 @@ endblock title %} {% block stylesheets %}
 </div>
 
 <script>
-  document.addEventListener("DOMContentLoaded", init);
+    let courseOfferingID;
 
-      function init() {
-          // Parse students data passed from Flask
-          const students = {{ students | tojson }};
-          populateAllStudentsTable(students);
-      }
+    document.addEventListener("DOMContentLoaded", init);
 
-      function populateAllStudentsTable(students) {
-          const studentTable = document.getElementById("studentTable");
+        function init() {
+            // Parse students data passed from Flask
+            const students = {{ students | tojson }};
+            courseOfferingID = {{ courseOfferingID }};
+            console.log("HERE IS THE COURSE OFFERING ID")
+            console.log(courseOfferingID)
+            populateAllStudentsTable(students);
+        }
 
-          // Clear existing rows if any
-          studentTable.innerHTML = "";
+        function populateAllStudentsTable(students) {
+            const studentTable = document.getElementById("studentTable");
 
-          // Loop through each student and create a new row
-          students.forEach(student => {
-              const row = document.createElement("tr");
-              row.setAttribute("id", `studentRow1${student.Student_ID}`);  // Set the id with dynamic student ID
+            // Clear existing rows if any
+            studentTable.innerHTML = "";
 
-              const nameCell = document.createElement("td");
-              nameCell.textContent = student.Student_Name || "N/A";
-              row.appendChild(nameCell);
+            // Loop through each student and create a new row
+            students.forEach(student => {
+                const row = document.createElement("tr");
+                row.setAttribute("id", `studentRow1${student.Student_ID}`);  // Set the id with dynamic student ID
 
-              const groupCell = document.createElement("td");
-              groupCell.textContent = student.Group_Name || "Unassigned";
-              row.appendChild(groupCell);
+                const nameCell = document.createElement("td");
+                nameCell.textContent = student.Student_Name || "N/A";
+                row.appendChild(nameCell);
 
-              const actionsCell = document.createElement("td");
-              
-              const groupDropdown = `{% for group in groups %}
-                                                  {% if group.Group_ID != -1 %}
-                                                  <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
-                                                  {% endif %}
-                                                {% endfor %}`;
-              actionsCell.innerHTML = `<div class="dropdown">
-                                <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
-                                    Edit
-                                </button>
-                                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
-                                    ${groupDropdown}
-                                </ul>
-                        </div>
-                        <button class="btn btn-warning" onclick="deleteStudentFromClass(${student.Student_ID})">Delete</button>`;
-                row.appendChild(actionsCell);
+                const groupCell = document.createElement("td");
+                groupCell.textContent = student.Group_Name || "Unassigned";
+                row.appendChild(groupCell);
 
-              // Append the row to the table
-              studentTable.appendChild(row);
-          });
-      }
-  function fetchGroupData() {
-      const groupID = document.getElementById('groupSelect').value;
-      fetch(`/get_group_students?groupID=${groupID}`)
-          .then(response => response.json())
-          .then(data => {
-              console.log(data); // Debugging statement
-              const studentTable = document.getElementById('studentTable');
-              studentTable.innerHTML = '';
+                const actionsCell = document.createElement("td");
 
-              if (data.error) {
-                  const row = `<tr><td colspan="3" class="text-center">${data.error}</td></tr>`;
-                  studentTable.insertAdjacentHTML('beforeend', row);
-              } else {
-                  if (data.length === 0) {
-                      const row = `<tr><td colspan="3" class="text-center">No students found for this group.</td></tr>`;
-                      studentTable.insertAdjacentHTML('beforeend', row);
-                  } else {
-                      data.forEach(student => {
-                          const groupDropdown = `{% for group in groups %}
-                                                  {% if group.Group_ID != -1 %}
-                                                  <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
-                                                  {% endif %}
-                                                {% endfor %}`;
-                          const row = `<tr id="studentRow${student.Student_ID}">
-                                          <td>${student.Student_Name}</td>
-                                          <td>${student.Group_ID ? student.Group_ID : 'Unassigned'}</td>
-                                          <td>
-                                              <div class="dropdown">
-                                                  <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
-                                                      Edit
-                                                  </button>
-                                                  <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
-                                                      ${groupDropdown}
-                                                  </ul>
-                                              </div>
-                                              <button class="btn btn-warning" onclick="deleteStudentFromGroup(${student.Student_ID})">Delete</button>
-                                          </td>
-                                       </tr>`;
-                          studentTable.insertAdjacentHTML('beforeend', row);
-                      });
-                  }
-              }
-          })
-          .catch(error => console.error('Error fetching group data:', error));
-  }
+                const groupDropdown = `{% for group in groups %}
+                                                    {% if group.Group_ID not in [-2, -1] %}
+                                                    <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
+                                                    {% endif %}
+                                                  {% endfor %}`;
+                actionsCell.innerHTML = `<div class="dropdown">
+                                  <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
+                                      Edit
+                                  </button>
+                                  <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
+                                      ${groupDropdown}
+                                  </ul>
+                          </div>
+                          <button class="btn btn-warning" onclick="deleteStudentFromClass(${student.Student_ID})">Delete</button>`;
+                  row.appendChild(actionsCell);
 
-  function changeStudentGroup(studentID, groupID) {
-      if (groupID === 'None') {
-          groupID = null;
-      }
+                // Append the row to the table
+                studentTable.appendChild(row);
+            });
+        }
+    function fetchGroupData() {
+        const groupID = document.getElementById('groupSelect').value;
+        fetch(`/get_group_students?groupID=${groupID}&courseOfferingID=`+courseOfferingID)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data); // Debugging statement
+                const studentTable = document.getElementById('studentTable');
+                studentTable.innerHTML = '';
 
-      fetch(`/change_student_group?studentID=${studentID}&groupID=${groupID}`, {
+                if (data.error) {
+                    const row = `<tr><td colspan="3" class="text-center">${data.error}</td></tr>`;
+                    studentTable.insertAdjacentHTML('beforeend', row);
+                } else {
+                    if (data.length === 0) {
+                        const row = `<tr><td colspan="3" class="text-center">No students found for this group.</td></tr>`;
+                        studentTable.insertAdjacentHTML('beforeend', row);
+                    } else {
+                        data.forEach(student => {
+                            const groupDropdown = `{% for group in groups %}
+                                                    {% if group.Group_ID != -1 %}
+                                                    <li><a class="dropdown-item" href="#" onclick="changeStudentGroup(${student.Student_ID}, '{{ group.Group_ID | default('None') }}')">{{ group.Group_Name }}</a></li>
+                                                    {% endif %}
+                                                  {% endfor %}`;
+                            const row = `<tr id="studentRow${student.Student_ID}">
+                                            <td>${student.Student_Name}</td>
+                                            <td>${student.Group_Name ? student.Group_Name : 'Unassigned'}</td>
+                                            <td>
+                                                <div class="dropdown">
+                                                    <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
+                                                        Edit
+                                                    </button>
+                                                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
+                                                        ${groupDropdown}
+                                                    </ul>
+                                                </div>
+                                                <button class="btn btn-warning" onclick="deleteStudentFromGroup(${student.Student_ID})">Delete</button>
+                                            </td>
+                                         </tr>`;
+                            studentTable.insertAdjacentHTML('beforeend', row);
+                        });
+                    }
+                }
+            })
+            .catch(error => console.error('Error fetching group data:', error));
+    }
+
+    function changeStudentGroup(studentID, groupID) {
+        if (groupID === 'None') {
+            groupID = null;
+        }
+
+        fetch(`/change_student_group?studentID=${studentID}&groupID=${groupID}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                //fetchGroupData(); // Refresh the table
+                window.location.reload();
+                populateAllStudentsTable(students);
+            }
+        })
+        .catch(error => console.error('Error changing student group:', error));
+    }
+
+    function deleteStudentFromGroup(studentID) {
+        fetch(`/remove_student_group?studentID=${studentID}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                // Remove the student's row from the table
+                document.getElementById(`studentRow${studentID}`).remove();
+                fetchGroupData(); // Refresh the table to update "Unassigned" group
+            }
+        })
+        .catch(error => console.error('Error removing student from group:', error));
+    }
+    function deleteStudentFromClass(studentID) {
+      fetch(`/remove_student_class?studentID=${studentID}`, {
           method: 'POST'
       })
       .then(response => response.json())
@@ -178,47 +216,16 @@ endblock title %} {% block stylesheets %}
           if (data.error) {
               alert(data.error);
           } else {
-              fetchGroupData(); // Refresh the table
-          }
-      })
-      .catch(error => console.error('Error changing student group:', error));
-  }
-
-  function deleteStudentFromGroup(studentID) {
-      fetch(`/remove_student_group?studentID=${studentID}`, {
-          method: 'POST'
-      })
-      .then(response => response.json())
-      .then(data => {
-          if (data.error) {
-              alert(data.error);
-          } else {
+              console.log("entered delete student from class")
               // Remove the student's row from the table
-              document.getElementById(`studentRow${studentID}`).remove();
-              fetchGroupData(); // Refresh the table to update "Unassigned" group
+              document.getElementById(`studentRow1${studentID}`).remove();
+              console.log('these are my students.')
+              console.log("these are my students: " + students)
+              populateAllStudentsTable();
           }
       })
       .catch(error => console.error('Error removing student from group:', error));
   }
-  function deleteStudentFromClass(studentID) {
-    fetch(`/remove_student_class?studentID=${studentID}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            console.log("entered delete student from class")
-            // Remove the student's row from the table
-            document.getElementById(`studentRow1${studentID}`).remove();
-            console.log('these are my students.')
-            console.log("these are my students: " + students)
-            populateAllStudentsTable();
-        }
-    })
-    .catch(error => console.error('Error removing student from group:', error));
-}
 </script>
 
 <style>

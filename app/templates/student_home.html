@@ -1,21 +1,20 @@
-{% extends "layouts/base.html" %}
-{% block title %} SMU - Test {% endblock title %}
-
-{% block content %}
+{% extends "layouts/base.html" %} {% block title %} SMU - Test {% endblock title
+%} {% block content %}
 <script>
   document.addEventListener("DOMContentLoaded", init);
 
   function init() {
-    const user = {{ user | tojson }}; 
+    const user = {{ session['user'] | tojson }};
     const evaluatorName = user.Name;
+    console.log("hi diya, please note this is the name of the user: ")
+    console.log(evaluatorName)
+    const evaluatorID = user.ID;
 
     // Populate evaluations when the page first loads (unsorted)
-    populateEvaluationsTable(evaluatorName);
+    populateEvaluationsTable(evaluatorName, evaluatorID);
 
     // Add event listener to "Sort by Due Date" button
-    document.querySelector("#sortButton").addEventListener("click", function () {
-      populateEvaluationsTable(evaluatorName, true);  // Sort flag = true
-    });
+
 
     const tableBody = document.querySelector("#evaluationsTable tbody");
     tableBody.addEventListener("click", function (event) {
@@ -26,10 +25,10 @@
   }
 
   // Fetch and display evaluations (sorted or unsorted)
-  function populateEvaluationsTable(evaluatorName, sorted = false) {
+  function populateEvaluationsTable(evaluatorName, evaluatorID, sorted = false) {
     const url = sorted
       ? `/sorted_evaluations?evaluatorName=${evaluatorName}`
-      : `/get_evaluations?evaluatorName=${evaluatorName}`;
+      : `/get_evaluations?evaluatorName=${evaluatorName}&evaluatorID=${evaluatorID}`;
 
     fetch(url)
       .then((response) => response.json())
@@ -39,22 +38,29 @@
 
         if (data.length > 0) {
           data.forEach((person) => {
-            const { Student_Being_Evaluated_Name, Status, Due_Date } = person;
-            createRow(Student_Being_Evaluated_Name, Status, Due_Date);
+            const { Student_Being_Evaluated_Name, Status, Due_Date , Scheduled_Eval_Name} = person;
+            createRow(Student_Being_Evaluated_Name, Status, Due_Date, Scheduled_Eval_Name);
           });
         } else {
           console.log("No evaluations found.");
+          const row = `<tr><td colspan="4" class="text-center">No evaluations scheduled for this student.</td></tr>`;
+          tableBody.insertAdjacentHTML('beforeend', row);
         }
       })
       .catch((error) => console.error(error));
   }
 
-  function createRow(personName, status, dueDate) {
+  function createRow(personName, status, dueDate, evalName) {
     const row = document.createElement("tr");
+
 
     const nameCell = document.createElement("td");
     nameCell.innerHTML = personName;
     row.appendChild(nameCell);
+
+    const evalNameCell = document.createElement("td");
+    evalNameCell.innerHTML = evalName;
+    row.appendChild(evalNameCell);
 
     const dueDateCell = document.createElement("td");
     dueDateCell.innerHTML = dueDate;
@@ -86,18 +92,31 @@
 
   function completeEvaluation(event, evaluatorName) {
     const personName = event.target.closest("tr").querySelector("td").innerHTML;
-    window.location.href = `/form/${personName}/${evaluatorName}`;
+    const evaluationName = event.target.closest("tr").querySelector("td:nth-child(2)").innerHTML;
+
+    window.location.href = `/form/${personName}/${evaluatorName}/${evaluationName}`;
   }
 </script>
 
 <div style="align-items: flex-start; margin-top: 30px">
-  <div style="display: flex; align-items: flex-start; margin-left: 130px; flex-direction: column">
-    <button id="sortButton" class="course-data-btn">Sort by Due Date</button>
-    <div class="table-responsive" style="height: 400px; width: 1250px; overflow-y: auto">
+  <div
+    style="
+      display: flex;
+      align-items: flex-start;
+      margin-left: 130px;
+      flex-direction: column;
+    "
+  >
+    <!-- <button id="sortButton" class="course-data-btn">Sort by Due Date</button> -->
+    <div
+      class="table-responsive"
+      style="height: 400px; width: 1250px; overflow-y: auto"
+    >
       <table id="evaluationsTable" class="table table-bordered table-striped">
         <thead>
           <tr>
             <th scope="col">Name</th>
+            <th scope="col">Evaluation</th>
             <th scope="col">Due Date</th>
             <th scope="col">Evaluation</th>
           </tr>

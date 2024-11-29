@@ -22,8 +22,20 @@
       }
 
       form {
-        width: 100%; 
+        width: 100%;
         max-width: 400px; /* Limit form width */
+      }
+
+      /* Styles for the popup alert */
+      .popup-alert {
+        background-color: red; /* Simple red background */
+        color: white;
+        padding: 10px 15px;
+        margin-top: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+        display: none; /* Hidden by default */
+        font-size: 14px;
       }
     </style>
     <link
@@ -37,6 +49,26 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const roleSelect = document.getElementById("role");
+        const studentIDContainer = document.getElementById(
+          "student-id-container"
+        );
+        const studentIDInput = document.getElementById("student-id");
+
+        // Function to toggle the visibility of the Student ID field and its required attribute
+        roleSelect.addEventListener("change", function () {
+          if (roleSelect.value === "student") {
+            studentIDContainer.style.display = "block"; // Show the Student ID field
+            studentIDInput.setAttribute("required", "true"); // Make the field required
+          } else {
+            studentIDContainer.style.display = "none"; // Hide the Student ID field
+            studentIDInput.removeAttribute("required"); // Remove the required attribute
+          }
+        });
+      });
+    </script>
   </head>
   <body>
     <div class="container-fluid">
@@ -50,22 +82,47 @@
         </div>
 
         <!-- Right Section: Form -->
-        <div class="col-md-6 split right" style="flex-direction: column;">
+        <div class="col-md-6 split right" style="flex-direction: column">
+          <!-- {% with messages = get_flashed_messages(with_categories=true) %} {% if
+          messages %} {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" role="alert">
+            {{ message }}
+          </div>
+          {% endfor %} {% endif %} {% endwith %} -->
+
           <h1 class="text-center mb-4">Create an Account</h1>
           <form method="POST" action="/sign_up">
             <div class="mb-3">
               <label for="name" class="form-label">Name</label>
-              <input type="text" class="form-control" id="name" name="name" placeholder="Name" required
+              <input
+                type="text"
+                class="form-control"
+                id="name"
+                name="name"
+                placeholder="Name"
+                required
               />
             </div>
             <div class="mb-3">
               <label for="email" class="form-label">Email address</label>
-              <input type="email" class="form-control" id="email" name="email" placeholder="Email" required
+              <input
+                type="email"
+                class="form-control"
+                id="email"
+                name="email"
+                placeholder="Email"
+                required
               />
             </div>
             <div class="mb-3">
               <label for="password" class="form-label">Password</label>
-              <input type="password" class="form-control" id="password" name="password" placeholder="Password" required
+              <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                placeholder="Password"
+                required
               />
             </div>
             <div class="mb-4">
@@ -75,13 +132,52 @@
                 <option value="professor">Professor</option>
               </select>
             </div>
-            <button type="submit" class="btn btn-primary w-100" style="background-color: darkblue;">
+            <!-- Student ID field (hidden by default) -->
+            <div class="mb-3" id="student-id-container">
+              <label for="student-id" class="form-label">Student ID</label>
+              <input
+                type="text"
+                class="form-control"
+                id="student-id"
+                name="student_id"
+                placeholder="Student ID"
+              />
+            </div>
+            <button
+              type="submit"
+              class="btn btn-primary w-100"
+              style="background-color: darkblue"
+            >
               Create Account
             </button>
+            <div id="popup-alert" class="popup-alert"></div>
             <a href="/sign_in">Already have an account? Login</a>
           </form>
         </div>
       </div>
     </div>
+
+    <script>
+      // Show the popup alert with the given message
+      function showPopupAlert(message) {
+        const popup = document.getElementById("popup-alert");
+        popup.innerHTML = message;
+        popup.style.display = "block"; // Show the popup
+
+        // Auto-hide the alert after 5 seconds
+        setTimeout(() => {
+          popup.style.display = "none"; // Hide the popup
+        }, 5000);
+      }
+
+      // Example usage (you can replace this with a condition to trigger it dynamically)
+      document.addEventListener("DOMContentLoaded", function () {
+        const errorMessage =
+          "{{ get_flashed_messages()[0] if get_flashed_messages() else '' }}";
+        if (errorMessage) {
+          showPopupAlert(errorMessage);
+        }
+      });
+    </script>
   </body>
 </html>

@@ -71,9 +71,8 @@
     </style>
 </head>
 <body>
-
     <div class="container">
-        <h1>Upload CSV File</h1>
+        <h1 style="color: black;">Upload CSV File</h1>
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <div class="alert">
@@ -82,11 +81,26 @@
             {% endif %}
         {% endwith %}
         <form action="/upload" method="post" enctype="multipart/form-data">
-            <input class="form-input" type="file" name="file" accept=".csv" required>
+            <input class="form-input" type="file" name="file" accept=".csv" id="fileInput" required>
+            <p id="fileNameDisplay" style="margin-top: 10px; font-style: italic; color: black"></p>
             <input class="form-input submit-btn" type="submit" value="Upload">
+            <a href="{{ url_for('static', filename='ExampleUpload.csv') }}" download>Download Example CSV</a>
+
         </form>
     </div>
-
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const fileInput = document.getElementById('fileInput');
+            const fileNameDisplay = document.getElementById('fileNameDisplay');
+            fileInput.addEventListener('change', function () {
+                if (fileInput.files.length > 0) {
+                    fileNameDisplay.textContent = `Selected File: ${fileInput.files[0].name}`;
+                } else {
+                    fileNameDisplay.textContent = '';
+                }
+            });
+        });
+    </script>
 </body>
 </html>
 {% endblock content %}

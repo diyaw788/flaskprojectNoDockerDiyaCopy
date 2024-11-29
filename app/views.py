@@ -34,21 +34,31 @@ def indexFunction():
 
 @app.route('/create_evals', methods=['GET', 'POST'])
 def create_evals():
+    from datetime import datetime
+
     courseOfferingID = request.args.get('courseOfferingID')
     courseName = request.args.get('courseName')
     evaluationName = request.form.get('evaluationName')
     evaluationDescription = request.form.get('evaluationDescription')
     dueDate = request.form.get('dueDate')
 
+    # Get the current date
+    assigned_date = datetime.now().date()
+
+    # Validate dueDate
+    try:
+        dueDate = datetime.strptime(dueDate, '%Y-%m-%d').date()
+        if dueDate < assigned_date:
+            error_message = "Due date cannot be earlier than the assigned date."
+            return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName, error=error_message)
+    except ValueError:
+        error_message = "Invalid date format. Please use YYYY-MM-DD."
+        return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName, error=error_message)
+
     # get all the Group_ID for the course offering ID
     sql = "select * from [peer-eval-db].dbo.CourseGroups where COID = ?"
     cursor.execute(sql, (courseOfferingID,))
     groups = cursor.fetchall()
-
-    from datetime import datetime
-
-    # Get the current date and time
-    assigned_date = datetime.now().date()
 
     # get all the students for each group
     for group in groups:
@@ -59,11 +69,9 @@ def create_evals():
             for student_being_evaluated in students:
                 if student_evaluating.Student_ID != student_being_evaluated.Student_ID:
                     # schedule an eval between student_evaluating and student_being_evaluated
-                    print("Student Evaluating: " + student_evaluating.Student_Name)
-                    print("Student Being Evaluated: " + student_being_evaluated.Student_Name)
-                    print(evaluationName)
-                    print(evaluationDescription)
-                    print(dueDate)
+                    print("###")
+                    print('Student Evaluating' + student_evaluating.Student_Name)
+                    print('Student Being Evaluated' + student_being_evaluated.Student_Name)
                     evaluation_sql = '''INSERT INTO [peer-eval-db].dbo.Scheduled_Eval (
                             Student_Being_Evaluated_ID,
                             Student_Evaluating_ID,
@@ -88,8 +96,7 @@ def create_evals():
                         );
 
                         '''
-                    print("SQL Query: ", evaluation_sql)
-                    print("Parameters: ", (
+                    cursor.execute(evaluation_sql, (
                         student_being_evaluated.Student_ID,
                         student_evaluating.Student_ID,
                         "Incomplete",
@@ -100,10 +107,10 @@ def create_evals():
                         evaluationName,
                         evaluationDescription
                     ))
-                    cursor.execute(evaluation_sql, (student_being_evaluated.Student_ID, student_evaluating.Student_ID, "Incomplete", dueDate, courseOfferingID, assigned_date, None, evaluationName, evaluationDescription))
                     conn.commit()
+
     return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName)
-    
+
 
 @app.route('/schedule_eval')
 def schedule_eval():
@@ -153,7 +160,8 @@ def sign_in():
                     # return render_template('professor_home.html', user=user_dict)
                     return redirect(url_for('professor_home'))
                 elif user_role == 'student':
-                    return render_template('student_home.html', user=user_dict)
+                    # return render_template('student_home.html', user=user_dict)
+                    return redirect(url_for('student_home'))
             else:
                 flash('Incorrect email, password, or role. Please try again.', 'error')
                 return redirect(url_for('sign_in'))
@@ -329,6 +337,7 @@ def view_course_students(courseOfferingID, courseName):
         
         # Add an "Unassigned" group to the list
         groups.append({'Group_ID': -1, 'Group_Name': 'Unassigned'})
+        groups.append({'Group_ID': -2, 'Group_Name': 'All Groups'})
 
         # Fetch students and convert rows to dictionaries
         query = '''Select Student.Student_ID, Student.Student_Name, Groups.Group_ID, Groups.Group_Name from StudentCourses
@@ -355,7 +364,9 @@ def add_student1():
     # groups = request.args.get('groups')
     try:
         # Query the CourseGroups table to get all groups for the specific courseOfferingID
-        query = "SELECT * FROM CourseGroups WHERE COID = ?"
+        query = '''SELECT * FROM CourseGroups 
+                JOIN Groups ON CourseGroups.Group_ID = Groups.Group_ID
+                WHERE COID = ?'''
         cursor.execute(query, (courseOfferingID,))
         
         # Fetch all matching records
@@ -366,7 +377,8 @@ def add_student1():
         for group in groups:
             group_data = {
                 'GroupID': group.Group_ID,
-                'CourseOfferingID': group.COID
+                'CourseOfferingID': group.COID,
+                'GroupName': group.Group_Name,
                 # Add any other relevant fields
             }
             group_list.append(group_data)
@@ -394,14 +406,24 @@ def get_group_students():
                 WHERE sg.Group_ID IS NULL AND cs.COID = ?
             """, (courseOfferingID,))
         else:
-            cursor.execute("""
-                SELECT s.Student_Name, s.Student_ID, sg.Group_ID
-                FROM Student s
-                JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
-                WHERE sg.Group_ID = ?
-            """, (groupID,))
+            if groupID == '-2':
+                print("okay, this is where were supposed to print all students")
+                print(courseOfferingID)
+                cursor.execute('''Select Student.Student_Name, Student.Student_ID, Groups.Group_ID, Groups.Group_Name from StudentCourses
+                    join Student on Student.Student_ID = StudentCourses.Student_ID
+                    join StudentGroups on StudentCourses.Student_ID = StudentGroups.Student_ID
+                    join Groups on StudentGroups.Group_ID = Groups.Group_ID
+                    where COID = ?;''', (courseOfferingID,))
+            else:
+                cursor.execute("""
+                    SELECT s.Student_Name, s.Student_ID, sg.Group_ID, g.Group_Name
+                    FROM Student s
+                    JOIN StudentGroups sg ON s.Student_ID = sg.Student_ID
+                    JOIN Groups g ON sg.Group_ID = g.Group_ID
+                    WHERE sg.Group_ID = ?
+                """, (groupID,))
         
-        students = [{'Student_Name': row[0], 'Student_ID': row[1], 'Group_ID': row[2]} for row in cursor.fetchall()]
+        students = [{'Student_Name': row[0], 'Student_ID': row[1], 'Group_ID': row[2], 'Group_Name': row[3]} for row in cursor.fetchall()]
         print("hi DIYa PLEASE look here")
         print(students)
         if not students:
@@ -501,8 +523,10 @@ def diyas_submit_student():
     cursor.execute(query, (courseOfferingID,))
     students = [{'Student_ID': row[0], 'Student_Name': row[1], 'Group_ID': row[2], 'Group_Name': row[3]} for row in cursor.fetchall()]
         
+    return redirect(url_for('view_course_students', courseOfferingID=courseOfferingID, courseName=courseName))
+
     # return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups)
-    return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups, students=students)
+    # return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups, students=students)
 
 
 
@@ -882,17 +906,23 @@ def change_student_group():
             if count > 0:
                 return jsonify({"error": "Student is already in the selected group."}), 400
 
-            # Delete the old entry
-            cursor.execute("""
-                DELETE FROM StudentGroups
-                WHERE Student_ID = ?
-            """, (studentID,))
+            # # Delete the old entry
+            # cursor.execute("""
+            #     DELETE FROM StudentGroups
+            #     WHERE Student_ID = ?
+            # """, (studentID,))
             
-            # Insert the new entry
+            # # Insert the new entry
+            # cursor.execute("""
+            #     INSERT INTO StudentGroups (Student_ID, Group_ID)
+            #     VALUES (?, ?)
+            # """, (studentID, groupID))
+
             cursor.execute("""
-                INSERT INTO StudentGroups (Student_ID, Group_ID)
-                VALUES (?, ?)
-            """, (studentID, groupID))
+                UPDATE StudentGroups
+                SET Group_ID = ?
+                WHERE Student_ID = ?
+            """, (groupID, studentID))
 
         conn.commit()
         return jsonify({"success": True})
@@ -1003,47 +1033,82 @@ def remove_student_class():
 
 
     
-# @app.route('/student_home', methods=['GET', 'POST'])
-# def student_home():
-#     return render_template('student_home.html')
+@app.route('/student_home', methods=['GET', 'POST'])
+def student_home():
+    return render_template('student_home.html')
 
-# @app.route('/sign_up', methods=['GET', 'POST'])
-# def sign_up():
-#     if request.method == 'POST':
-#         name = request.form.get('name')
-#         email = request.form.get('email')
-#         password = request.form.get('password')
-#         role = request.form.get('role')
-#         print(name) 
-#         # Diya Wadhera
-#         print("this is the role:", role)
-#         # professor
+@app.route('/sign_up', methods=['GET', 'POST'])
+def sign_up():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        role = request.form.get('role')
 
-    
+        print(name) 
+        # Diya Wadhera
+        print("this is the role:", role)
+        # professor
         
-#         if role == 'professor':
-#             sql = '''
-#                     INSERT INTO Professor (Professor_ID, Professor_Name, Professor_Email, Password)
-#                     VALUES (?, ?, ?, ?)
-#                 '''
-#             cursor.execute('SELECT MAX(Professor_ID) FROM Professor')
-#         elif role == 'student':
-#             sql = '''
-#                     INSERT INTO Student (Student_ID, Student_Name, Email, Password)
-#                     VALUES (?, ?, ?, ?)
-#                 '''
-#             cursor.execute('SELECT MAX(Student_ID) FROM Student')
-        
-#         max_id = cursor.fetchone()[0]
-#         if max_id is None:
-#             max_id = 0
-#         new_id = max_id + 1
-#         cursor.execute(sql, (new_id, name, email, password))    
-#         conn.commit()
+        if role == 'professor':
+            # Check if the professor already exists in the database
+            cursor.execute('SELECT COUNT(*) FROM Professor WHERE Professor_Email = ?', (email,))
+            professor_exists = cursor.fetchone()[0]
 
-#         return render_template('sign_in.html')
-#     else:
-#         return render_template('sign_up.html')
+            if professor_exists > 0:
+                # Professor with this email already exists
+                flash('A professor with this email already exists. Please use a different email.', 'error')
+                return render_template('sign_up.html')  # Reload the sign-up form with an alert
+            else:
+                # Insert the new professor record
+                cursor.execute('SELECT MAX(Professor_ID) FROM Professor')
+                max_id = cursor.fetchone()[0]
+                if max_id is None:
+                    max_id = 0
+                new_id = max_id + 1
+
+                sql = '''
+                        INSERT INTO Professor (Professor_ID, Professor_Name, Professor_Email, Password)
+                        VALUES (?, ?, ?, ?)
+                    '''
+                cursor.execute(sql, (new_id, name, email, password))
+                conn.commit()
+        elif role == 'student':
+            student_id = request.form.get('student_id')
+
+            # Check if the student_id exists in the database
+            cursor.execute('SELECT Password FROM Student WHERE Student_ID = ?', (student_id,))
+            student_record = cursor.fetchone()
+
+            if student_record:
+                # Scenario 1 & 2: Student ID exists
+                existing_password = student_record[0]
+
+                if existing_password == 'x':
+                    # Scenario 1: Update Email and Password
+                    cursor.execute('''
+                        UPDATE Student
+                        SET Email = ?, Password = ?
+                        WHERE Student_ID = ?
+                    ''', (email, password, student_id))
+                    conn.commit()
+                    flash('Your account has been successfully updated.', 'success')
+                else:
+                    # Scenario 2: Account already exists
+                    flash('An account already exists for this Student ID.', 'error')
+                    return render_template('sign_up.html')  # Reload the form
+            else:
+                # Scenario 3: Insert a new student record
+                cursor.execute('''
+                    INSERT INTO Student (Student_ID, Student_Name, Email, Password)
+                    VALUES (?, ?, ?, ?)
+                ''', (student_id, name, email, password))
+                conn.commit()
+                flash('Your account has been successfully created.', 'success')
+
+        return render_template('sign_in.html')
+    else:
+        return render_template('sign_up.html')
 
 
 # @app.route('/studentLogin', methods=['GET', 'POST'])
@@ -1127,24 +1192,38 @@ def remove_student_class():
 # #     return render_template('test2.html', beingEval=beingEval, evaluatorName=evaluatorName)
  
 
-# @app.route('/get_evaluations', methods = ['GET']) 
-# def get_evaluations():
-#     try:
-#         evaluatorName = request.args.get("evaluatorName")
-#         print(evaluatorName)
-#         # sql = "select SID_BeingEval, SID_Evaluating, Status, Due_Date from Scheduled_Eval where SID_Evaluating = ?"
-#         cursor.execute("select Student_Being_Evaluated_Name, Student_Evaluating_Name, Status, Due_Date from Scheduled_Eval where Student_Evaluating_Name = ?", evaluatorName)
-#         evaluations = cursor.fetchall()
-#         print(evaluations)
-#         evaluations = [
-#             {"Student_Being_Evaluated_Name": row.Student_Being_Evaluated_Name, "Student_Evaluating_Name": row.Student_Evaluating_Name, "Status": row.Status, "Due_Date": row.Due_Date}
-#             for row in evaluations
-#         ]
-#         print("i reach here")
-#         return jsonify(evaluations)
-#     except Exception as e:
-#         print(f"Error: {e}")
-#         return jsonify({"error": str(e)}), 500
+@app.route('/get_evaluations', methods = ['GET']) 
+def get_evaluations():
+    try:
+        evaluatorName = request.args.get("evaluatorName")
+        evaluatorID = request.args.get("evaluatorID")
+
+        print(evaluatorName, " ", evaluatorID)
+        # sql = "select SID_BeingEval, SID_Evaluating, Status, Due_Date from Scheduled_Eval where SID_Evaluating = ?"
+        cursor.execute('''SELECT 
+                            s1.Student_Name AS Student_Being_Evaluated_Name,
+                            s2.Student_Name AS Student_Evaluating_Name,
+                            se.Status,
+                            se.Due_Date, 
+                            se.Scheduled_Eval_Name
+                        FROM [peer-eval-db].dbo.Scheduled_Eval AS se
+                        LEFT JOIN [peer-eval-db].dbo.Student AS s1
+                            ON se.Student_Being_Evaluated_ID = s1.Student_ID
+                        LEFT JOIN [peer-eval-db].dbo.Student AS s2
+                            ON se.Student_Evaluating_ID = s2.Student_ID
+                        WHERE se.Student_Evaluating_ID = ?;
+                        ''', evaluatorID)
+        evaluations = cursor.fetchall()
+        print(evaluations)
+        evaluations = [
+            {"Student_Being_Evaluated_Name": row.Student_Being_Evaluated_Name, "Student_Evaluating_Name": row.Student_Evaluating_Name, "Status": row.Status, "Due_Date": row.Due_Date, "Scheduled_Eval_Name": row.Scheduled_Eval_Name}
+            for row in evaluations
+        ]
+        print("i reach here")
+        return jsonify(evaluations)
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # # @app.route('/evaluation_form', methods = ['GET'])
 # # def evaluation_form():
@@ -1247,135 +1326,202 @@ def remove_student_class():
 
 
 
-# @app.route('/form/<string:beingEval>/<string:evaluatorName>')
-# def form(beingEval, evaluatorName):
-#     try:
-#         # student_being_evaluated = request.args.get('beingEval')
-#         return render_template('form.html', student_name=beingEval, evaluator_name=evaluatorName)
+@app.route('/form/<string:beingEval>/<string:evaluatorName>/<string:evaluationName>')
+def form(beingEval, evaluatorName, evaluationName):
+    try:
+        # student_being_evaluated = request.args.get('beingEval')
+        return render_template('form.html', student_name=beingEval, evaluator_name=evaluatorName, evaluationName=evaluationName)
 
-#     except Exception as e:
+    except Exception as e:
 
-#         print(f"Error: {e}")
+        print(f"Error: {e}")
 
-#         return "An error occurred", 500
-
-
+        return "An error occurred", 500
 
 
-# @app.route('/submit_evaluation/<evaluator_name>', methods=['POST'])
 
-# def submit_evaluation(evaluator_name):
 
-#     if request.method == 'POST':
+@app.route('/submit_evaluation/<evaluator_name>', methods=['POST'])
 
-#         try:
+def submit_evaluation(evaluator_name):
 
-#             # Fetch data from the form
+    if request.method == 'POST':
 
-#             Team_Member_Name = request.form['Team_Member_Name']
+        try:
 
-#             Group_Effort_Peer = int(request.form['topic1'])
+            # Fetch data from the form
 
-#             Completes_Tasks_On_Time_Peer = int(request.form['topic2'])
+            Team_Member_Name = request.form['Team_Member_Name']
+            Evaluation_Name = request.form['evaluationName']
 
-#             Provides_Useful_Feedback_Peer = int(request.form['topic3'])
+            Group_Effort_Peer = int(request.form['topic1'])
 
-#             Communicates_Effectively_Peer = int(request.form['topic4'])
+            Completes_Tasks_On_Time_Peer = int(request.form['topic2'])
 
-#             Accepts_Contribution_Peer = int(request.form['topic5'])
+            Provides_Useful_Feedback_Peer = int(request.form['topic3'])
 
-#             Builds_Contributions_Peer = int(request.form['topic6'])
+            Communicates_Effectively_Peer = int(request.form['topic4'])
 
-#             Group_Role_Peer = int(request.form['topic7'])
+            Accepts_Contribution_Peer = int(request.form['topic5'])
 
-#             Clarifies_Goals_Peer = int(request.form['topic8'])
+            Builds_Contributions_Peer = int(request.form['topic6'])
 
-#             Reports_To_Team_Peer = int(request.form['topic9'])
+            Group_Role_Peer = int(request.form['topic7'])
 
-#             Ensures_Consistency_Peer = int(request.form['topic10'])
+            Clarifies_Goals_Peer = int(request.form['topic8'])
 
-#             Positivity_Peer = int(request.form['topic11'])
+            Reports_To_Team_Peer = int(request.form['topic9'])
 
-#             Appropriate_Assertiveness_Peer = int(request.form['topic12'])
+            Ensures_Consistency_Peer = int(request.form['topic10'])
 
-#             Appropriate_Contibution_Peer = int(request.form['topic13'])
+            Positivity_Peer = int(request.form['topic11'])
 
-#             Manages_Conflict_Peer = int(request.form['topic14'])
+            Appropriate_Assertiveness_Peer = int(request.form['topic12'])
 
-#             Overall_Score_Peer = int(request.form['topic15'])
+            Appropriate_Contibution_Peer = int(request.form['topic13'])
 
- 
+            Manages_Conflict_Peer = int(request.form['topic14'])
 
-#             # cursor.execute('SELECT MAX(Eval_ID) FROM Evaluation')
-
-#             # max_eval_id = cursor.fetchone()[0]
-
-#             # if max_eval_id is None:
-
-#             #     max_eval_id = 0
-
-#             # new_eval_id = max_eval_id + 1
+            Overall_Score_Peer = int(request.form['topic15'])
 
  
 
-#             # Print form data for debugging
+            # cursor.execute('SELECT MAX(Eval_ID) FROM Evaluation')
 
-#             # print(f"Form Data: {new_eval_id}, {Team_Member_Name}, {Group_Effort_Peer}, {Completes_Tasks_On_Time_Peer}, {Provides_Useful_Feedback_Peer}, {Communicates_Effectively_Peer}, {Accepts_Contribution_Peer}, {Builds_Contributions_Peer}, {Group_Role_Peer}, {Clarifies_Goals_Peer}, {Reports_To_Team_Peer}, {Ensures_Consistency_Peer}, {Positivity_Peer}, {Appropriate_Assertiveness_Peer}, {Appropriate_Contibution_Peer}, {Manages_Conflict_Peer}, {Overall_Score_Peer}")
-#             print(f"Form Data: {Team_Member_Name}, {Group_Effort_Peer}, {Completes_Tasks_On_Time_Peer}, {Provides_Useful_Feedback_Peer}, {Communicates_Effectively_Peer}, {Accepts_Contribution_Peer}, {Builds_Contributions_Peer}, {Group_Role_Peer}, {Clarifies_Goals_Peer}, {Reports_To_Team_Peer}, {Ensures_Consistency_Peer}, {Positivity_Peer}, {Appropriate_Assertiveness_Peer}, {Appropriate_Contibution_Peer}, {Manages_Conflict_Peer}, {Overall_Score_Peer}")
+            # max_eval_id = cursor.fetchone()[0]
 
- 
+            # if max_eval_id is None:
 
-#             # Insert data into the Evaluation table
+            #     max_eval_id = 0
 
-#             sql = '''
-
-#                 INSERT INTO Evaluation (Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer)
-
-#                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-#             '''
-#             # sql = '''
-
-#             #     INSERT INTO Evaluation (Eval_ID, Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer)
-
-#             #     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-
-#             # '''
-
-
-#             sql1 = '''
-#                 UPDATE Scheduled_Eval
-#                 SET Status = 'Complete'
-#                 WHERE Student_Being_Evaluated_Name = ?
-#                 AND Student_Evaluating_Name = ?;      
-#                 '''
-#             cursor.execute(sql1, (Team_Member_Name, evaluator_name))
-
-#             # cursor.execute(sql, (new_eval_id, Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer))
-#             cursor.execute(sql, (Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer))
-
-#             conn.commit()
+            # new_eval_id = max_eval_id + 1
 
  
 
-#             flash('Evaluation submitted successfully!', 'success')
-#             return render_template('index.html')
+            # Print form data for debugging
 
-#             # return redirect(url_for('form', student_being_evaluated=Team_Member_Name))
-
-#         except Exception as e:
-
-#             conn.rollback()
-
-#             print(f"Error: {e}")
-
-#             flash(f"An error occurred: {e}", 'error')
-
-#             return f"An error occurred: {e}", 500
+            # print(f"Form Data: {new_eval_id}, {Team_Member_Name}, {Group_Effort_Peer}, {Completes_Tasks_On_Time_Peer}, {Provides_Useful_Feedback_Peer}, {Communicates_Effectively_Peer}, {Accepts_Contribution_Peer}, {Builds_Contributions_Peer}, {Group_Role_Peer}, {Clarifies_Goals_Peer}, {Reports_To_Team_Peer}, {Ensures_Consistency_Peer}, {Positivity_Peer}, {Appropriate_Assertiveness_Peer}, {Appropriate_Contibution_Peer}, {Manages_Conflict_Peer}, {Overall_Score_Peer}")
+            print(f"Form Data: {Team_Member_Name}, {Group_Effort_Peer}, {Completes_Tasks_On_Time_Peer}, {Provides_Useful_Feedback_Peer}, {Communicates_Effectively_Peer}, {Accepts_Contribution_Peer}, {Builds_Contributions_Peer}, {Group_Role_Peer}, {Clarifies_Goals_Peer}, {Reports_To_Team_Peer}, {Ensures_Consistency_Peer}, {Positivity_Peer}, {Appropriate_Assertiveness_Peer}, {Appropriate_Contibution_Peer}, {Manages_Conflict_Peer}, {Overall_Score_Peer}")
 
  
 
-#     # return render_template('success.html')
+            # Insert data into the Evaluation table
 
+            sql = '''
+
+                INSERT INTO Evaluation (Evaluator_Name, Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer)
+
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+            '''
+            # sql = '''
+
+            #     INSERT INTO Evaluation (Eval_ID, Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer)
+
+            #     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+            # '''
+
+            queryForID = """
+            SELECT Student_ID
+            FROM [peer-eval-db].dbo.Student
+            WHERE Student_Name = ?
+            """
+            cursor.execute(queryForID, (Team_Member_Name,))
+            being_evaluated_id = cursor.fetchone()[0]
+
+            cursor.execute(queryForID, (evaluator_name,))
+            evaluating_id = cursor.fetchone()[0]
+
+
+
+            sql1 = '''
+                UPDATE Scheduled_Eval
+                SET Status = 'Complete'
+                WHERE Student_Being_Evaluated_ID = ?
+                AND Student_Evaluating_ID = ?
+                AND Scheduled_Eval_Name = ?;      
+                '''
+            cursor.execute(sql1, (being_evaluated_id, evaluating_id, Evaluation_Name))
+
+            # cursor.execute(sql, (new_eval_id, Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer))
+            cursor.execute(sql, (evaluator_name, Team_Member_Name, Group_Effort_Peer, Completes_Tasks_On_Time_Peer, Provides_Useful_Feedback_Peer, Communicates_Effectively_Peer, Accepts_Contribution_Peer, Builds_Contributions_Peer, Group_Role_Peer, Clarifies_Goals_Peer, Reports_To_Team_Peer, Ensures_Consistency_Peer, Positivity_Peer, Appropriate_Assertiveness_Peer, Appropriate_Contibution_Peer, Manages_Conflict_Peer, Overall_Score_Peer))
+
+            conn.commit()
 
  
+
+            flash('Evaluation submitted successfully!', 'success')
+            # return render_template('index.html')
+
+            return redirect(url_for('student_home'))
+
+        except Exception as e:
+
+            conn.rollback()
+
+            print(f"Error: {e}")
+
+            flash(f"An error occurred: {e}", 'error')
+
+            return f"An error occurred: {e}", 500
+
+ 
+
+    # return render_template('success.html')
+
+@app.route('/forgot_password_email', methods=['GET', 'POST'])
+def forgot_password_email():
+    return render_template('forget_password_email.html')
+
+@app.route('/forgot_password_reset', methods=['GET', 'POST'])
+def forgot_password_reset():
+    return render_template('forget_password_reset.html')
+
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+
+        # Check if the email exists in either Student or Professor table
+        cursor.execute('SELECT COUNT(*) FROM Student WHERE Email = ?', (email,))
+        student_exists = cursor.fetchone()[0]
+
+        cursor.execute('SELECT COUNT(*) FROM Professor WHERE Professor_Email = ?', (email,))
+        professor_exists = cursor.fetchone()[0]
+
+        if not student_exists and not professor_exists:
+            flash('This email does not exist. Try signing up.', 'error')
+            return redirect(url_for('sign_up'))
+        else:
+            # Save the email in the session for the next page
+            session['email'] = email
+            return redirect(url_for('reset_password'))
+
+    return redirect(url_for('forgot_password_email'))
+
+
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        email = session.get('email')
+
+        if not email:
+            flash('Session expired. Please try again.', 'error')
+            return redirect(url_for('forgot_password'))
+
+        # Update the password in the correct table
+        cursor.execute('UPDATE Student SET Password = ? WHERE Email = ?', (new_password, email))
+        student_updated = cursor.rowcount > 0  # Check if any row was updated
+
+        if not student_updated:
+            cursor.execute('UPDATE Professor SET Password = ? WHERE Professor_Email = ?', (new_password, email))
+            professor_updated = cursor.rowcount > 0
+
+        conn.commit()
+
+        flash('Your password has been updated successfully.', 'success')
+        return redirect(url_for('sign_in'))
+
+    return redirect(url_for('forgot_password_reset'))
