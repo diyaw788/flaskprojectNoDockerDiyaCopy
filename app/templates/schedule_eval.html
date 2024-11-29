@@ -1,39 +1,35 @@
 {% extends "layouts/base.html" %} {% block title %}Professor Dashboard{%
-  endblock title %}
-{% block stylesheets %}
-    <style>
-      body,
-      h1,
-      label,
-      table,
-      select,
-      button {
-        color: navy;
-      }
-      .btn-primary {
-        background-color: navy !important;
-        border-color: navy !important;
-        color: white !important;
-      }
-      .btn-warning {
-        background-color: #ffc107 !important;
-        border-color: #ffc107 !important;
-        color: white !important;
-      }
-      .btn-danger {
-        background-color: #dc3545 !important;
-        border-color: #dc3545 !important;
-        color: white !important;
-      }
-    </style>
-{% endblock stylesheets %}
-{% block content %}
+endblock title %} {% block stylesheets %}
+<style>
+  body,
+  h1,
+  label,
+  table,
+  select,
+  button {
+    color: navy;
+  }
+  .btn-primary {
+    background-color: navy !important;
+    border-color: navy !important;
+    color: white !important;
+  }
+  .btn-warning {
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
+    color: white !important;
+  }
+  .btn-danger {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+  }
+</style>
+{% endblock stylesheets %} {% block content %}
 <div class="container mt-5">
   <h1 style="color: navy">Course: {{ courseName }}</h1>
   {% if error %}
-  <div class="alert alert-danger" role="alert">
-    {{ error }}
-  </div>
+  <div class="alert alert-danger" role="alert">{{ error }}</div>
   {% endif %}
   <div class="d-flex justify-content-between align-items-center mb-3">
     <form
@@ -41,7 +37,9 @@
       method="POST"
     >
       <!-- Evaluation Name -->
-      <label for="evaluationName" class="form-label" style="color: navy">Evaluation Name</label>
+      <label for="evaluationName" class="form-label" style="color: navy"
+        >Evaluation Name</label
+      >
       <input
         type="text"
         class="form-control"
@@ -52,7 +50,11 @@
       />
 
       <!-- Evaluation Description -->
-      <label for="evaluationDescription" class="form-label" style="color: navy; margin-top: 10px;">
+      <label
+        for="evaluationDescription"
+        class="form-label"
+        style="color: navy; margin-top: 10px"
+      >
         Evaluation Description
       </label>
       <textarea
@@ -65,7 +67,11 @@
       ></textarea>
 
       <!-- Due Date -->
-      <label for="dueDate" class="form-label" style="color: navy; margin-top: 10px;">
+      <label
+        for="dueDate"
+        class="form-label"
+        style="color: navy; margin-top: 10px; width: 700px"
+      >
         Due Date
       </label>
       <input
@@ -74,12 +80,13 @@
         id="dueDate"
         name="dueDate"
         required
-      /> 
-      <br>
-      
+      />
+      <br />
+
       <button
         type="submit"
         class="btn btn-primary custom-button"
+        style="background-color: navy; color: white"
       >
         Schedule Evaluation
       </button>

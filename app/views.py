@@ -109,8 +109,8 @@ def create_evals():
                     ))
                     conn.commit()
 
-    return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName)
-
+    return redirect(url_for('view_course_students', courseOfferingID=courseOfferingID, courseName=courseName))
+    # return render_template('schedule_eval.html', courseOfferingID=courseOfferingID, courseName=courseName)
 
 @app.route('/schedule_eval')
 def schedule_eval():
@@ -309,14 +309,16 @@ def upload_file():
                                     VALUES (?, ?, ?);
                                 """, (group_id, student_id, student_name))
                             conn.commit()
+                            flash('File uploaded and processed successfully!')
+                            return redirect(url_for('professor_home'))
                     except Exception as e:
                         print(f"Error inserting row {index}: {e}")
-
-                flash('File uploaded and processed successfully!')
+                
             except Exception as e:
                 flash(f'Error processing file: {e}')
             
             return redirect(url_for('upload_file'))
+            
         
         flash('File type is not allowed. Please upload a CSV file.')
         return redirect(request.url)
