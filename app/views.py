@@ -338,7 +338,7 @@ def view_course_students(courseOfferingID, courseName):
         groups = [{'Group_ID': row[0], 'Group_Name': row[1]} for row in cursor.fetchall()]
         
         # Add an "Unassigned" group to the list
-        groups.append({'Group_ID': -1, 'Group_Name': 'Unassigned'})
+        # groups.append({'Group_ID': -1, 'Group_Name': 'Unassigned'})
         groups.append({'Group_ID': -2, 'Group_Name': 'All Groups'})
 
         # Fetch students and convert rows to dictionaries
@@ -476,55 +476,60 @@ def diyas_submit_student():
     student_id = request.form['student_id']
     name = request.form['name']
     groupSelect = request.form['groupSelect']
-    cursor.execute("""
-                        INSERT INTO dbo.Student (Student_ID, Student_Name, Email, Password)
-                        VALUES (?, ?, ?, 'x');
-                    """, (student_id, name, str(student_id)))
-    conn.commit()
 
-    cursor.execute("""
-                        INSERT INTO dbo.StudentCourses (Student_ID, COID)
-                        VALUES (?, ?);
-                    """, (student_id, courseOfferingID))
-    conn.commit()
+    # Check if the student already exists in the Student table
+    cursor.execute("SELECT COUNT(*) FROM dbo.Student WHERE Student_ID = ?", (student_id,))
+    student_exists = cursor.fetchone()[0]
 
-    if groupSelect != "Unassigned":
+    if student_exists:
+        # Check if the student is already in the StudentCourses table for this course
+        cursor.execute("SELECT COUNT(*) FROM dbo.StudentCourses WHERE Student_ID = ? AND COID = ?", (student_id, courseOfferingID))
+        course_enrollment_exists = cursor.fetchone()[0]
+
+        if course_enrollment_exists:
+            # Student is already in this course
+            flash(f"Student ID {student_id} already belongs to a student in this course.", "error")
+            return redirect(url_for('add_student1', courseOfferingID=courseOfferingID, courseName=courseName))
+
+        else:
+            # Add student to the course
+            cursor.execute("""
+                INSERT INTO dbo.StudentCourses (Student_ID, COID)
+                VALUES (?, ?);
+            """, (student_id, courseOfferingID))
+            conn.commit()
+
+            # Add student to the selected group (if not "Unassigned")
+            if groupSelect != "Unassigned":
+                cursor.execute("""
+                    INSERT INTO dbo.StudentGroups (Group_ID, Student_ID, Student_Name)
+                    VALUES (?, ?, ?);
+                """, (groupSelect, student_id, name))
+                conn.commit()
+    else:
+        # Student does not exist, insert into Student table
         cursor.execute("""
-                            INSERT INTO dbo.StudentGroups (Group_ID, Student_ID, Student_Name)
-                            VALUES (?, ?, ?);
-                        """, (groupSelect, student_id, name))
+            INSERT INTO dbo.Student (Student_ID, Student_Name, Email, Password)
+            VALUES (?, ?, ?, 'x');
+        """, (student_id, name, str(student_id)))
         conn.commit()
-    # return render_template('successPage.html')
-    query = '''SELECT * FROM [peer-eval-db].dbo.CourseGroups 
-            join [peer-eval-db].dbo.Groups on CourseGroups.Group_ID = Groups.Group_ID
-            WHERE COID = ?'''
-    
-    cursor.execute(query, (courseOfferingID,))
-    print("diya here today")
-    # groups
-    groups = cursor.fetchall()
-    group_list = []
-    for group in groups:
-        group_data = {
-            'Group_ID': group.Group_ID,
-            'CourseOfferingID': group.COID,
-            'Group_Name': group.Group_Name
-            # Add any other relevant fields
-        }
-        group_list.append(group_data)
-    print("hi diya, here is a list of the groups: ")
-    print(groups)
 
-    print("DIYA HELP ME")
-    # Fetch students and convert rows to dictionaries
-    query = '''Select Student.Student_ID, Student.Student_Name, Groups.Group_ID, Groups.Group_Name from StudentCourses
-            join Student on Student.Student_ID = StudentCourses.Student_ID
-            join StudentGroups on StudentCourses.Student_ID = StudentGroups.Student_ID
-            join Groups on StudentGroups.Group_ID = Groups.Group_ID
-            where COID = ?;'''
-    cursor.execute(query, (courseOfferingID,))
-    students = [{'Student_ID': row[0], 'Student_Name': row[1], 'Group_ID': row[2], 'Group_Name': row[3]} for row in cursor.fetchall()]
-        
+        # Add the student to the course
+        cursor.execute("""
+            INSERT INTO dbo.StudentCourses (Student_ID, COID)
+            VALUES (?, ?);
+        """, (student_id, courseOfferingID))
+        conn.commit()
+
+        # Add the student to the selected group (if not "Unassigned")
+        if groupSelect != "Unassigned":
+            cursor.execute("""
+                INSERT INTO dbo.StudentGroups (Group_ID, Student_ID, Student_Name)
+                VALUES (?, ?, ?);
+            """, (groupSelect, student_id, name))
+            conn.commit()
+
+    # For the scenarios where changes were successfully made
     return redirect(url_for('view_course_students', courseOfferingID=courseOfferingID, courseName=courseName))
 
     # return render_template('professor_dashboard.html', courseOfferingID=courseOfferingID, courseName=courseName, groups=groups)

@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="/static/assets/fonts/fontawesome-all.min.css">
     <link rel="stylesheet" href="/static/assets/css/bs-theme-overrides.css">
     <link rel="stylesheet" href="/static/assets/css/Navbar-Right-Links-Dark-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha384-jLKHWMFfhSP5VUupIoepLYiCphtjPwy0HMWZZP0xvZj8KSqtwAIlKe+QFx8CBFYg" crossorigin="anonymous">
+
 </head>
 
 <body class="text-bg-secondary" id="body">
@@ -48,20 +50,22 @@
                         </ul>
                     </li>
                     <div class="nav-item">
-                        <div class="nav-image-caption">
+                        <div class="nav-item dropdown nav-image-caption">
                             <div class="image-in-circle">
                                 <div class="circle" style="width: 45px; height: 45px; border-radius: 50%; background-color: #141B4D;"></div>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" style="position: absolute; fill: white;" class="bi bi-person-circle" viewBox="0 0 16 16">
-                                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
-                                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
-                                  </svg>
+                                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0" />
+                                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1" />
+                                </svg>
                             </div>
-                            <a class="nav-link dropdown-toggle" style="padding-top: 2px" id="visualizationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Account</a>
-                            <ul class="dropdown-menu" aria-labelledby="accountDropdown">
+                            <a class="nav-link dropdown-toggle" style="padding-top: 2px;" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Account
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="accountDropdown">
                                 <li><a class="dropdown-item" href="/log_out">Log Out</a></li>
                             </ul>
                         </div>
+                        
                     </div>
                 </ul>
             </div>

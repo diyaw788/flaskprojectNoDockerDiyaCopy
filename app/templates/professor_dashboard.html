@@ -116,8 +116,10 @@ endblock title %} {% block stylesheets %}
                                   <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton${student.Student_ID}">
                                       ${groupDropdown}
                                   </ul>
-                          </div>
-                          <button class="btn btn-warning" onclick="deleteStudentFromClass(${student.Student_ID})">Delete</button>`;
+                                  <button class="btn btn-danger" onclick="deleteStudentFromClass(${student.Student_ID})">
+                                    <i class="fas fa-trash"></i>
+                                  </button>
+                          </div>`;
                   row.appendChild(actionsCell);
 
                 // Append the row to the table

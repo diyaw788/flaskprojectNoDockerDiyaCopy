@@ -1,6 +1,10 @@
 {% extends "layouts/base.html" %} {% block title %}Add Student{% endblock title
 %} {% block content %}
 <div class="container mt-5" style="color: black">
+  {% with messages = get_flashed_messages(with_categories=true) %} {% if
+  messages %} {% for category, message in messages %}
+  <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+  {% endfor %} {% endif %} {% endwith %}
   <h2>Add New Student</h2>
   <form
     action="{{ url_for('diyas_submit_student', courseOfferingID=courseOfferingID, courseName=courseName) }}"
@@ -42,7 +46,20 @@
     </div>
 
     <!-- Use type="submit" to submit the form -->
-    <button type="submit" class="btn btn-primary">Add Student</button>
+    <button
+      type="submit"
+      class="btn btn-primary"
+      style="background-color: navy; color: white"
+    >
+      Add Student
+    </button>
   </form>
+  <a
+    href="{{ url_for('view_course_students', courseOfferingID=courseOfferingID, courseName=courseName) }}"
+    class="btn btn-primary"
+    style="background-color: red; color: white; margin-top: 10px"
+  >
+    Cancel
+  </a>
 </div>
 {% endblock content %}
