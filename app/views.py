@@ -309,8 +309,8 @@ def upload_file():
                                     VALUES (?, ?, ?);
                                 """, (group_id, student_id, student_name))
                             conn.commit()
-                            flash('File uploaded and processed successfully!')
-                            return redirect(url_for('professor_home'))
+                            flash('File uploaded and processed successfully!', 'success')
+                            # return redirect(url_for('professor_home'))
                     except Exception as e:
                         print(f"Error inserting row {index}: {e}")
                 
