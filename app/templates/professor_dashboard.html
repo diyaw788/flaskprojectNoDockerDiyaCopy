@@ -153,6 +153,7 @@ endblock title %} {% block stylesheets %}
                                             <td>${student.Student_Name}</td>
                                             <td>${student.Group_Name ? student.Group_Name : 'Unassigned'}</td>
                                             <td>
+                                              <div style="display:flex">
                                                 <div class="dropdown">
                                                     <button class="btn custom-button dropdown-toggle" type="button" id="dropdownMenuButton${student.Student_ID}" data-bs-toggle="dropdown" aria-expanded="false">
                                                         Edit
@@ -161,7 +162,11 @@ endblock title %} {% block stylesheets %}
                                                         ${groupDropdown}
                                                     </ul>
                                                 </div>
-                                                <button class="btn btn-warning" onclick="deleteStudentFromGroup(${student.Student_ID})">Delete</button>
+
+                                                  <button class="btn btn-danger" style="margin-left:5px" onclick="deleteStudentFromGroup(${student.Student_ID})">
+                                                    <i class="fas fa-trash"></i>
+                                                  </button>
+                                              </div>
                                             </td>
                                          </tr>`;
                             studentTable.insertAdjacentHTML('beforeend', row);
