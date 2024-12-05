@@ -1,0 +1,135 @@
+{% extends "layouts/base.html" %} {% block content %}
+<div class="container mt-4">
+  <h2>{{ course_name }}</h2>
+  <div class="row">
+    <!-- Upcoming Assignments Section -->
+    <div class="col-md-12">
+      <h2 style="color: black">Upcoming Assignments</h2>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <!-- <th>Group Name</th> -->
+            <th>Assignment Title</th>
+            <th>Due Date</th>
+            <th>Progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for assignment in upcoming_assignments %}
+          <tr>
+            <!-- <td>{{ assignment.group_name }}</td> -->
+            <td>{{ assignment.assignment_title }}</td>
+            <td>{{ assignment.due_date }}</td>
+            <td>
+              <div class="progress">
+                <div
+                  class="progress-bar"
+                  role="progressbar"
+                  style="width: {{ assignment.completion_percentage }}%;"
+                  aria-valuenow="{{ assignment.completion_percentage }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                >
+                  {{ assignment.completion_percentage }}%
+                </div>
+              </div>
+            </td>
+            <td>
+              <button
+                class="btn btn-primary btn-sm"
+                onclick="editAssignment('{{ assignment.assignment_title|e }}')"
+              >
+                <i class="fas fa-pencil-alt"></i> Edit
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                onclick="deleteAssignment('{{ assignment.assignment_title|e }}')"
+              >
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Past Due Assignments Section -->
+    <div class="col-md-12 mt-4">
+      <h2 style="color: black">Past Due Assignments</h2>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <!-- <th>Group Name</th> -->
+            <th>Assignment Title</th>
+            <th>Due Date</th>
+            <th>Progress</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for assignment in past_due_assignments %}
+          <tr>
+            <!-- <td>{{ assignment.group_name }}</td> -->
+            <td>{{ assignment.assignment_title }}</td>
+            <td>{{ assignment.due_date }}</td>
+            <td>
+              <div class="progress">
+                <div
+                  class="progress-bar bg-success"
+                  role="progressbar"
+                  style="width: {{ assignment.completion_percentage }}%;"
+                  aria-valuenow="{{ assignment.completion_percentage }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                >
+                  {{ assignment.completion_percentage }}%
+                </div>
+              </div>
+            </td>
+            <td>
+              <button
+                class="btn btn-primary btn-sm"
+                onclick="editAssignment('{{ assignment.assignment_title|e }}')"
+              >
+                <i class="fas fa-pencil-alt"></i> Edit
+              </button>
+              <button
+                class="btn btn-danger btn-sm"
+                onclick="deleteAssignment('{{ assignment.assignment_title|e }}')"
+              >
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  function editAssignment(assignment_title) {
+    // Redirect to edit page with assignment ID
+    window.location.href = `/edit_assignment/${assignment_title}`;
+  }
+
+  function deleteAssignment(assignment_title) {
+    if (confirm("Are you sure you want to delete this assignment?")) {
+      // Make a DELETE request to the server
+      fetch(`/delete_assignment/${assignment_title}`, {
+        method: "DELETE",
+      }).then((response) => {
+        if (response.ok) {
+          alert("Assignment deleted successfully!");
+          location.reload();
+        } else {
+          alert("Failed to delete assignment.");
+        }
+      });
+    }
+  }
+</script>
+{% endblock %}

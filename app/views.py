@@ -32,6 +32,237 @@ def indexFunction():
     print("entered the index function")
     return redirect(url_for('sign_in'))
 
+# ////////////////////////////
+# @app.route('/progress', methods=['GET'])
+# def progress():
+#     professor_ID = session['user'].get('ID')
+
+#     # Get course details
+#     course = cursor.execute("SELECT Course_Name FROM dbo.Courses WHERE Course_ID = ?", (course_id,)).fetchone()
+#     course_name = course.Course_Name if course else "Unknown Course"
+
+#     # Fetch upcoming assignments
+#     upcoming_query = """
+#         SELECT 
+#             a.Assignment_ID, 
+#             a.Assignment_Title, 
+#             a.Due_Date, 
+#             g.Group_Name, 
+#             (CAST(COUNT(se.Status) AS FLOAT) / 
+#             (SELECT COUNT(*) 
+#             FROM dbo.Scheduled_Eval 
+#             WHERE Scheduled_Eval_Name = a.Assignment_Title) * 100) AS Completion_Percentage
+#         FROM dbo.Assignments a
+#         JOIN dbo.CourseGroups cg ON cg.COID = a.COID
+#         JOIN dbo.Groups g ON g.Group_ID = cg.Group_ID
+#         LEFT JOIN dbo.Scheduled_Eval se ON se.Scheduled_Eval_Name = a.Assignment_Title AND se.Status = 'Completed'
+#         WHERE a.COID = (SELECT COID FROM dbo.CourseOfferings WHERE Course_ID = ?)
+#         AND a.Due_Date >= GETDATE()
+#         GROUP BY a.Assignment_ID, a.Assignment_Title, a.Due_Date, g.Group_Name
+#         ORDER BY a.Due_Date ASC
+#     """
+#     upcoming_assignments = cursor.execute(upcoming_query, (course_id,)).fetchall()
+
+#     # Fetch past-due assignments
+#     past_due_query = """
+#         SELECT 
+#             a.Assignment_ID, 
+#             a.Assignment_Title, 
+#             a.Due_Date, 
+#             g.Group_Name, 
+#             (CAST(COUNT(se.Status) AS FLOAT) / 
+#              (SELECT COUNT(*) FROM dbo.Scheduled_Eval WHERE Scheduled_Eval_Name = a.Assignment_Title) * 100) AS Completion_Percentage
+#         FROM dbo.Assignments a
+#         JOIN dbo.CourseGroups cg ON cg.COID = a.COID
+#         JOIN dbo.Groups g ON g.Group_ID = cg.Group_ID
+#         LEFT JOIN dbo.Scheduled_Eval se ON se.Scheduled_Eval_Name = a.Assignment_Title AND se.Status = 'Completed'
+#         WHERE a.COID = (SELECT COID FROM dbo.CourseOfferings WHERE Course_ID = '{course_id}')
+#         AND a.Due_Date < GETDATE()
+#         GROUP BY a.Assignment_ID, a.Assignment_Title, a.Due_Date, g.Group_Name
+#         ORDER BY a.Due_Date DESC
+#     """
+#     past_due_assignments = cursor.execute(past_due_query).fetchall()
+
+#     # Transform data into dictionaries for easier rendering
+#     def format_assignments(assignments):
+#         return [
+#             {
+#                 "assignment_id": row.Assignment_ID,
+#                 "assignment_title": row.Assignment_Title,
+#                 "due_date": row.Due_Date.strftime('%B %d, %Y'),
+#                 "group_name": row.Group_Name,
+#                 "completion_percentage": int(row.Completion_Percentage) if row.Completion_Percentage else 0
+#             }
+#             for row in assignments
+#         ]
+
+#     upcoming_assignments = format_assignments(upcoming_assignments)
+#     past_due_assignments = format_assignments(past_due_assignments)
+
+#     return render_template(
+#         "progress.html",
+#         course_name=course_name,
+#         upcoming_assignments=upcoming_assignments,
+#         past_due_assignments=past_due_assignments
+#     )
+@app.route('/progress', methods=['GET'])
+def progress():
+    # Assuming the logged-in professor's ID is stored in the session
+    professor_id = session['user'].get('ID')
+
+
+    # Fetch all assignments assigned by the logged-in professor
+    upcoming_query = f"""
+                SELECT 
+            Scheduled_Eval_Name,
+            Due_Date,
+            COUNT(CASE WHEN Status = 'Complete' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0) AS Completion_Percentage,
+            COUNT(CASE WHEN Status = 'Incomplete' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0) AS Incompletion_Percentage
+        FROM [peer-eval-db].dbo.Scheduled_Eval
+        WHERE COID IN (
+            SELECT COID 
+            FROM [peer-eval-db].dbo.ProfessorCourse 
+            WHERE Professor_ID = ?
+        )
+        AND Due_Date >= CAST(GETDATE() AS DATE) 
+        GROUP BY Scheduled_Eval_Name, Due_Date;
+
+    """
+        
+    
+    upcoming_assignments = cursor.execute(upcoming_query, (professor_id,)).fetchall()
+    print("THESE ARE UPCOMING")
+    print(upcoming_assignments)
+
+    # past_due_query = """
+    #     SELECT 
+    #         dbo.Assignments.Assignment_ID, 
+    #         dbo.Assignments.Assignment_Title, 
+    #         dbo.Assignments.Due_Date, 
+    #         dbo.Groups.Group_Name, 
+    #         (CAST(COUNT(dbo.Scheduled_Eval.Status) AS FLOAT) / 
+    #         NULLIF((SELECT COUNT(*) 
+    #                 FROM dbo.Scheduled_Eval 
+    #                 WHERE Scheduled_Eval_Name = dbo.Assignments.Assignment_Title), 0) * 100) AS Completion_Percentage
+    #     FROM dbo.Assignments
+    #     JOIN dbo.CourseGroups ON dbo.CourseGroups.COID = dbo.Assignments.COID
+    #     JOIN dbo.Groups ON dbo.Groups.Group_ID = dbo.CourseGroups.Group_ID
+    #     LEFT JOIN dbo.Scheduled_Eval ON dbo.Scheduled_Eval.Scheduled_Eval_Name = dbo.Assignments.Assignment_Title 
+    #                                 AND dbo.Scheduled_Eval.Status = 'Completed'
+    #     WHERE dbo.Assignments.COID IN (
+    #         SELECT dbo.ProfessorCourse.COID 
+    #         FROM dbo.ProfessorCourse 
+    #         WHERE dbo.ProfessorCourse.Professor_ID = ?
+    #     )
+    #     AND dbo.Assignments.Due_Date < GETDATE()
+    #     GROUP BY 
+    #         dbo.Assignments.Assignment_ID, 
+    #         dbo.Assignments.Assignment_Title, 
+    #         dbo.Assignments.Due_Date, 
+    #         dbo.Groups.Group_Name
+    #     ORDER BY dbo.Assignments.Due_Date DESC
+    # """
+
+    # past_due_assignments = cursor.execute(past_due_query, (professor_id,)).fetchall()
+
+    past_due_query = f"""
+                SELECT 
+            Scheduled_Eval_Name,
+            Due_Date,
+            COUNT(CASE WHEN Status = 'Complete' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0) AS Completion_Percentage,
+            COUNT(CASE WHEN Status = 'Incomplete' THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0) AS Incompletion_Percentage
+        FROM [peer-eval-db].dbo.Scheduled_Eval
+        WHERE COID IN (
+            SELECT COID 
+            FROM [peer-eval-db].dbo.ProfessorCourse 
+            WHERE Professor_ID = ?
+        )
+        AND Due_Date < CAST(GETDATE() AS DATE) 
+        GROUP BY Scheduled_Eval_Name, Due_Date;
+
+    """
+        
+    
+    past_due_assignments = cursor.execute(past_due_query, (professor_id,)).fetchall()
+
+    # Transform data into dictionaries for easier rendering
+    def format_assignments(assignments):
+        return [
+            {
+                # "assignment_id": row.Assignment_ID,
+                "assignment_title": row.Scheduled_Eval_Name,
+                "due_date": row.Due_Date.strftime('%B %d, %Y'),
+                # "group_name": row.Group_Name,
+                "completion_percentage": int(row.Completion_Percentage) if row.Completion_Percentage else 0
+            }
+            for row in assignments
+        ]
+
+    upcoming_assignments = format_assignments(upcoming_assignments)
+    past_due_assignments = format_assignments(past_due_assignments)
+
+    return render_template(
+        "progress.html",
+        upcoming_assignments=upcoming_assignments,
+        past_due_assignments=past_due_assignments
+    )
+
+@app.route('/edit_assignment/<string:assignment_title>', methods=['GET', 'POST'])
+def edit_assignment(assignment_title):
+    print("THIS IS THE ASSIGNMENT TITLE")
+    print(assignment_title)
+    if request.method == 'POST':
+        # Handle assignment editing
+        title = request.form['title']
+        description = request.form['description']
+        due_date = request.form['due_date']
+        cursor.execute(
+            """
+            UPDATE dbo.Scheduled_Eval
+            SET Scheduled_Eval_Name = ?, 
+                Scheduled_Eval_Description = ?, 
+                Due_Date = ?
+            WHERE Scheduled_Eval_Name = ?
+            """,
+            (title, description, due_date, assignment_title)
+        )
+
+        conn.commit()
+        return redirect(url_for('progress'))
+
+    # Fetch assignment details for the edit form
+    assignment_query = f"""
+        SELECT TOP 1 Scheduled_Eval_Name, Scheduled_Eval_Description, Due_Date
+        FROM [peer-eval-db].dbo.Scheduled_Eval
+        WHERE Scheduled_Eval_Name = ?;
+
+    """
+    assignment = cursor.execute(assignment_query, assignment_title).fetchone()
+    print("THIS IS THE ASSIGNMENT")
+    print(assignment)
+    assignment_dict = {
+        "assignment_title": assignment[0],
+        "description": assignment[1],
+        "due_date": assignment[2].strftime('%Y-%m-%d'),
+    }
+    return render_template(
+        "edit_assignment.html",
+        assignment=assignment_dict
+    )
+
+
+
+@app.route('/delete_assignment/<string:assignment_name>', methods=['DELETE'])
+def delete_assignment(assignment_name):
+    try:
+        cursor.execute(f"DELETE FROM dbo.Scheduled_Eval WHERE Scheduled_Eval_Name = ?", (assignment_name,))
+        conn.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# ////////////////////////////
+
 @app.route('/create_evals', methods=['GET', 'POST'])
 def create_evals():
     from datetime import datetime
